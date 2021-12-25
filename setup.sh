@@ -204,9 +204,10 @@ podman build toolbox/ -t ${USER}/fedora-toolbox:latest
 toolbox create -c fedora-toolbox-35 -i ${USER}/fedora-toolbox
 
 # Start SSHD on login
-mkdir ${HOME}/.ssh
+mkdir -p ${HOME}/.ssh
 chmod 700 ${HOME}/.ssh/
 touch ${HOME}/.ssh/config
+chmod 600 ${HOME}/.ssh/
 tee -a ${HOME}/.ssh/config << EOF
 Host toolbox
 	HostName localhost
@@ -216,8 +217,8 @@ Host toolbox
 EOF
 
 mkdir -p ${HOME}/.config/systemd/user
-touch ${HOME}/.config/systemd/user/toolbox_ssh.service
-tee -a ${HOME}/.config/systemd/user/toolbox_ssh.service << EOF
+touch ${HOME}/.config/systemd/user/toolbox_sshd.service
+tee -a ${HOME}/.config/systemd/user/toolbox_sshd.service << EOF
 [Unit]
 Description=Launch sshd in Fedora Toolbox
 
