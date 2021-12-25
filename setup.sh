@@ -162,8 +162,10 @@ gsettings set org.gnome.settings-daemon.plugins.media-keys area-screenshot-clip 
 flatpak install flathub org.gnome.Extensions
 flatpak install flathub com.belmoussaoui.Authenticator
 flatpak install flathub com.visualstudio.code
+sudo flatpak override --env=GTK_THEME=Fluent-grey-dark com.visualstudio.code
 flatpak install flathub org.gtk.Gtk3theme.Adwaita-dark
 flatpak install flathub com.spotify.Client
+sudo flatpak override --env=GTK_THEME=Fluent-grey-dark com.spotify.Client
 flatpak install flathub org.gimp.GIMP
 flatpak install flathub org.blender.Blender
 flatpak install flathub org.chromium.Chromium
@@ -225,7 +227,7 @@ Description=Launch sshd in Fedora Toolbox
 [Service]
 Type=longrun
 ExecPre=/usr/bin/podman start fedora-toolbox-35
-ExecStart=/usr/bin/toolbox run sudo /usr/sbin/sshd
+ExecStart=/usr/bin/toolbox run sudo /usr/sbin/sshd -D
 
 [Install]
 WantedBy=default.target
