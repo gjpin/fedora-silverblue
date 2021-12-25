@@ -214,7 +214,7 @@ Host toolbox
 	UserKnownHostsFile=/dev/null
 EOF
 
-mkdir -p ${HOME}/.config/systemd/user/toolbox_ssh.service
+mkdir -p ${HOME}/.config/systemd/user
 touch ${HOME}/.config/systemd/user/toolbox_ssh.service
 tee -a ${HOME}/.config/systemd/user/toolbox_ssh.service << EOF
 [Unit]
@@ -233,7 +233,6 @@ systemctl --user daemon-reload
 systemctl --user enable --now toolbox_sshd
 
 # Start syncthing on login
-mkdir -p ${HOME}/.config/systemd/user/toolbox_syncthing.service
 touch ${HOME}/.config/systemd/user/toolbox_syncthing.service
 tee -a ${HOME}/.config/systemd/user/toolbox_syncthing.service << EOF
 [Unit]
