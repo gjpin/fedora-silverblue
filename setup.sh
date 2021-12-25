@@ -61,6 +61,7 @@ gsettings set org.gnome.desktop.interface icon-theme 'Fluent-orange'
 
 # Set Gnome Shell theme
 dconf write /org/gnome/shell/extensions/user-theme/name "'Fluent-grey'"
+dconf write /org/gnome/shell/extensions/blur-my-shell/blur-panel false
 
 # Install GTK them as Flatpak
 git clone https://github.com/refi64/stylepak.git
