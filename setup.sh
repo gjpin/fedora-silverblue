@@ -101,6 +101,9 @@ cp *.ttf ${HOME}/.local/share/fonts
 cd ..
 rm -rf noto-sans
 
+# Update font cache
+sudo fc-cache -v
+
 # Set fonts
 gsettings set org.gnome.desktop.interface document-font-name 'Inter 9'
 gsettings set org.gnome.desktop.interface font-name 'Inter 9'
@@ -284,6 +287,8 @@ mv hey_linux_amd64 ${HOME}/.local/bin/hey
 chmod +x ${HOME}/.local/bin/hey
 
 # Install Golang
+mkdir -p ${HOME}/.bashrc.d/
+touch ${HOME}/.bashrc.d/exports
 wget https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
 rm -rf ${HOME}/.local/go
 tar -C ${HOME}/.local -xzf go${GOLANG_VERSION}.linux-amd64.tar.gz
