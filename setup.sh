@@ -102,7 +102,7 @@ cd ..
 rm -rf noto-sans
 
 # Update font cache
-sudo fc-cache -v
+fc-cache -v
 
 # Set fonts
 gsettings set org.gnome.desktop.interface document-font-name 'Inter 9'
