@@ -209,7 +209,7 @@ toolbox create -c fedora-toolbox-35 -i ${USER}/fedora-toolbox
 mkdir -p ${HOME}/.ssh
 chmod 700 ${HOME}/.ssh/
 touch ${HOME}/.ssh/config
-chmod 600 ${HOME}/.ssh/
+chmod 600 ${HOME}/.ssh/config
 tee -a ${HOME}/.ssh/config << EOF
 Host toolbox
 	HostName localhost
@@ -258,9 +258,9 @@ systemctl --user enable --now toolbox_syncthing
 mkdir -p ${HOME}/.local/bin
 
 # Install applications
-curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip \
-unzip nomad.zip \
-mv nomad ${HOME}/.local/bin/nomad \
+curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
+unzip nomad.zip
+mv nomad ${HOME}/.local/bin/nomad
 rm nomad.zip
 
 curl -sSL https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip -o consul.zip
