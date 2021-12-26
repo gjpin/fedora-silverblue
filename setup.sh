@@ -127,7 +127,6 @@ then
 fi
 
 ## Gnome Terminal padding
-touch ${HOME}/.config/gtk-3.0/gtk.css
 tee -a ${HOME}/.config/gtk-3.0/gtk.css << EOF
 VteTerminal,
 TerminalScreen,
@@ -183,7 +182,6 @@ flatpak install -y flathub com.usebottles.bottles
 
 # Chrome - Enable GPU acceleration
 mkdir -p ~/.var/app/com.google.Chrome/config
-touch ~/.var/app/com.google.Chrome/config/chrome-flags.conf
 tee -a ~/.var/app/com.google.Chrome/config/chrome-flags.conf << EOF
 --ignore-gpu-blacklist
 --enable-gpu-rasterization
@@ -194,7 +192,6 @@ EOF
 
 # Chromium - Enable GPU acceleration
 mkdir -p ~/.var/app/org.chromium.Chromium/config
-touch ~/.var/app/org.chromium.Chromium/config/chromium-flags.conf
 tee -a ~/.var/app/org.chromium.Chromium/config/chromium-flags.conf << EOF
 --ignore-gpu-blacklist
 --enable-gpu-rasterization
@@ -210,8 +207,6 @@ toolbox create -c fedora-toolbox-35 -i ${USER}/fedora-toolbox
 # Start SSHD on login
 mkdir -p ${HOME}/.ssh
 chmod 700 ${HOME}/.ssh/
-touch ${HOME}/.ssh/config
-chmod 600 ${HOME}/.ssh/config
 tee -a ${HOME}/.ssh/config << EOF
 Host toolbox
 	HostName localhost
@@ -219,9 +214,12 @@ Host toolbox
 	StrictHostKeyChecking no
 	UserKnownHostsFile=/dev/null
 EOF
+chmod 600 ${HOME}/.ssh/config
 
+# Create systemd user units folder
 mkdir -p ${HOME}/.config/systemd/user
-touch ${HOME}/.config/systemd/user/toolbox_sshd.service
+
+# Start sshd on login
 tee -a ${HOME}/.config/systemd/user/toolbox_sshd.service << EOF
 [Unit]
 Description=Launch sshd in Fedora Toolbox
@@ -239,7 +237,6 @@ systemctl --user daemon-reload
 systemctl --user enable --now toolbox_sshd
 
 # Start syncthing on login
-touch ${HOME}/.config/systemd/user/toolbox_syncthing.service
 tee -a ${HOME}/.config/systemd/user/toolbox_syncthing.service << EOF
 [Unit]
 Description=Launch syncthing in Fedora Toolbox
@@ -255,6 +252,14 @@ EOF
 
 systemctl --user daemon-reload
 systemctl --user enable --now toolbox_syncthing
+
+# Add aliases
+tee -a ~/.bashrc.d/aliases << EOF
+alias code="flatpak run com.visualstudio.code"
+alias te="toolbox enter"
+alias dark="gsettings set org.gnome.desktop.interface gtk-theme 'Fluent-grey-dark' && dconf write /org/gnome/shell/extensions/user-theme/name \"'Fluent-grey-dark'\""
+alias light="gsettings set org.gnome.desktop.interface gtk-theme 'Fluent-grey-light' && dconf write /org/gnome/shell/extensions/user-theme/name \"'Fluent-grey'\""
+EOF
 
 # Create local bin folder
 mkdir -p ${HOME}/.local/bin
