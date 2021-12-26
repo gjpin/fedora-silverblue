@@ -63,7 +63,7 @@ gsettings set org.gnome.desktop.interface icon-theme 'Fluent-orange'
 dconf write /org/gnome/shell/extensions/user-theme/name "'Fluent-grey'"
 dconf write /org/gnome/shell/extensions/blur-my-shell/blur-panel false
 
-# Allow Flatpaks to access GTK themes and set theme
+# Allow Flatpaks to access GTK themes and icons
 sudo flatpak override --filesystem=xdg-data/themes:ro
 sudo flatpak override --filesystem=xdg-data/icons:ro
 
@@ -235,8 +235,8 @@ ExecStart=/usr/bin/toolbox run sudo /usr/sbin/sshd -D
 WantedBy=default.target
 EOF
 
-systemctl --user -y daemon-reload
-systemctl --user -y enable --now toolbox_sshd
+systemctl --user daemon-reload
+systemctl --user enable --now toolbox_sshd
 
 # Start syncthing on login
 touch ${HOME}/.config/systemd/user/toolbox_syncthing.service
@@ -253,8 +253,8 @@ ExecStart=/usr/bin/toolbox run /usr/bin/syncthing
 WantedBy=default.target
 EOF
 
-systemctl --user -y daemon-reload
-systemctl --user -y enable --now toolbox_syncthing
+systemctl --user daemon-reload
+systemctl --user enable --now toolbox_syncthing
 
 # Create local bin folder
 mkdir -p ${HOME}/.local/bin
