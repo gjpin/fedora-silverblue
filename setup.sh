@@ -7,17 +7,17 @@ GOLANG_VERSION=1.17.5
 INTER_VERSION=3.19
 
 # Add Flathub and Flathub Beta repos
-flatpak remote-add --user -y --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak remote-add --user -y --if-not-exists flathub-beta https://flathub.org/beta-repo/flathub-beta.flatpakrepo
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak remote-add --if-not-exists flathub-beta https://flathub.org/beta-repo/flathub-beta.flatpakrepo
 flatpak update --appstream
 
 # Remove Firefox RPM
 rpm-ostree override remove firefox
 
 # Install Firefox Flatpak
-flatpak install --user -y flathub org.mozilla.firefox
-flatpak install --user -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/21.08
-flatpak override --user --socket=wayland --env=MOZ_ENABLE_WAYLAND=1 org.mozilla.firefox
+flatpak install -y flathub org.mozilla.firefox
+flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/21.08
+sudo flatpak override --socket=wayland --env=MOZ_ENABLE_WAYLAND=1 org.mozilla.firefox
 
 # Open Firefox and then manually close it to create profile folder
 echo "Close Firefox window to proceed with setup"
@@ -64,9 +64,8 @@ dconf write /org/gnome/shell/extensions/user-theme/name "'Fluent-grey'"
 dconf write /org/gnome/shell/extensions/blur-my-shell/blur-panel false
 
 # Allow Flatpaks to access GTK themes and set theme
-flatpak override --user --filesystem=xdg-data/themes:ro
-flatpak override --user --filesystem=xdg-data/icons:ro
-flatpak override --user --env=GTK_THEME="Fluent-grey-light"
+sudo flatpak override --filesystem=xdg-data/themes:ro
+sudo flatpak override --filesystem=xdg-data/icons:ro
 
 # Install fonts
 mkdir -p ${HOME}/.local/share/fonts
@@ -117,7 +116,7 @@ gsettings set org.gnome.nautilus.icon-view default-zoom-level 'standard'
 
 ## Text editor
 dconf write /org/gnome/gedit/preferences/ui/side-panel-visible true
-gsettings set org.gnome.gedit.preferences.editor wrap-mode 'none'
+dconf write /org/gnome/gedit/preferences/editor/wrap-mode "'none'"
 
 ## Laptop specific
 if [[ $(cat /sys/class/dmi/id/chassis_type) -eq 10 ]]
@@ -159,27 +158,28 @@ gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/or
 gsettings set org.gnome.settings-daemon.plugins.media-keys area-screenshot-clip "['<Super><Shift>s']"
 
 # Install Flatpak applications
-flatpak install --user -y flathub org.gnome.Extensions
-flatpak install --user -y flathub com.belmoussaoui.Authenticator
-flatpak install --user -y flathub com.visualstudio.code
-flatpak override --user --env=GTK_THEME="Fluent-grey-dark" com.visualstudio.code
-flatpak install --user -y flathub org.gtk.Gtk3theme.Adwaita-dark
-flatpak install --user -y flathub com.spotify.Client
-flatpak override --user --env=GTK_THEME="Fluent-grey-dark" com.spotify.Client
-flatpak install --user -y flathub org.gimp.GIMP
-flatpak override --user --env=GTK_THEME="Fluent-grey-dark" org.gimp.GIMP
-flatpak install --user -y flathub org.blender.Blender
-flatpak override --user --env=GTK_THEME="Fluent-grey-dark" org.blender.Blender
-flatpak install --user -y flathub org.chromium.Chromium
-flatpak install --user -y flathub org.keepassxc.KeePassXC
-flatpak install --user -y flathub com.github.tchx84.Flatseal
-flatpak install --user -y flathub-beta com.google.Chrome
-flatpak install --user -y flathub com.usebottles.bottles
-# flatpak install --user -y flathub com.valvesoftware.Steam
-# flatpak override --user --filesystem=/media/${USER}/data/games/steam com.valvesoftware.Steam
-# flatpak install --user flathub-beta net.lutris.Lutris//beta
-# flatpak install --user -y flathub org.gnome.Platform.Compat.i386 org.freedesktop.Platform.GL32.default org.freedesktop.Platform.GL.default
-# flatpak override --user --filesystem=/media/${USER}/data/games/lutris net.lutris.Lutris
+flatpak install -y flathub org.gnome.Extensions
+flatpak install -y flathub com.belmoussaoui.Authenticator
+flatpak install -y flathub com.visualstudio.code
+flatpak install -y flathub com.spotify.Client
+flatpak install -y flathub org.gimp.GIMP
+flatpak install -y flathub org.blender.Blender
+flatpak install -y flathub org.chromium.Chromium
+flatpak install -y flathub org.keepassxc.KeePassXC
+flatpak install -y flathub com.github.tchx84.Flatseal
+flatpak install -y flathub-beta com.google.Chrome
+flatpak install -y flathub com.usebottles.bottles
+# flatpak install -y flathub com.valvesoftware.Steam
+# sudo flatpak override --filesystem=/media/${USER}/data/games/steam com.valvesoftware.Steam
+# flatpak install flathub-beta net.lutris.Lutris//beta
+# flatpak install -y flathub org.gnome.Platform.Compat.i386 org.freedesktop.Platform.GL32.default org.freedesktop.Platform.GL.default
+# sudo flatpak override --filesystem=/media/${USER}/data/games/lutris net.lutris.Lutris
+
+# Force GTK theme for some apps
+# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark com.visualstudio.code
+# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark com.spotify.Client
+# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark org.gimp.GIMP
+# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark org.blender.Blender
 
 # Chrome - Enable GPU acceleration
 mkdir -p ~/.var/app/com.google.Chrome/config
