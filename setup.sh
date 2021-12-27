@@ -163,6 +163,7 @@ flatpak install -y flathub com.visualstudio.code
 flatpak install -y flathub com.spotify.Client
 flatpak install -y flathub org.gimp.GIMP
 flatpak install -y flathub org.blender.Blender
+flatpak install -y flathub org.videolan.VLC
 flatpak install -y flathub org.chromium.Chromium
 flatpak install -y flathub org.keepassxc.KeePassXC
 flatpak install -y flathub com.github.tchx84.Flatseal
