@@ -253,6 +253,9 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now toolbox_syncthing
 
+# Create bashrc.d configs folder
+mkdir -p ${HOME}/.bashrc.d/
+
 # Add aliases
 tee -a ~/.bashrc.d/aliases << EOF
 alias code="flatpak run com.visualstudio.code"
@@ -291,7 +294,6 @@ mv hey_linux_amd64 ${HOME}/.local/bin/hey
 chmod +x ${HOME}/.local/bin/hey
 
 # Install Golang
-mkdir -p ${HOME}/.bashrc.d/
 touch ${HOME}/.bashrc.d/exports
 wget https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
 rm -rf ${HOME}/.local/go
