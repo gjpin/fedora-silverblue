@@ -181,8 +181,25 @@ flatpak install -y flathub com.usebottles.bottles
 # sudo flatpak override --env=GTK_THEME=Fluent-grey-dark org.gimp.GIMP
 # sudo flatpak override --env=GTK_THEME=Fluent-grey-dark org.blender.Blender
 
+# VSCode - Import user settings
+mkdir -p ${HOME}/.var/app/com.visualstudio.code/config/Code/User
+tee -a ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
+{
+    "telemetry.telemetryLevel": "off",
+    "window.menuBarVisibility": "toggle",
+    "workbench.startupEditor": "none",
+    "editor.fontFamily": "'Noto Sans Mono', 'Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
+    "workbench.enableExperiments": false,
+    "workbench.settings.enableNaturalLanguageSearch": false
+}
+EOF
+
+# VSCode - Install Remote SSH extension
+flatpak run com.visualstudio.code --install-extension ms-vscode-remote.remote-ssh
+flatpak run com.visualstudio.code --install-extension ms-vscode-remote.remote-ssh-edit
+
 # Chrome - Enable GPU acceleration
-mkdir -p ~/.var/app/com.google.Chrome/config
+mkdir -p ${HOME}/.var/app/com.google.Chrome/config
 tee -a ~/.var/app/com.google.Chrome/config/chrome-flags.conf << EOF
 --ignore-gpu-blacklist
 --enable-gpu-rasterization
@@ -192,7 +209,7 @@ tee -a ~/.var/app/com.google.Chrome/config/chrome-flags.conf << EOF
 EOF
 
 # Chromium - Enable GPU acceleration
-mkdir -p ~/.var/app/org.chromium.Chromium/config
+mkdir -p ${HOME}/.var/app/org.chromium.Chromium/config
 tee -a ~/.var/app/org.chromium.Chromium/config/chromium-flags.conf << EOF
 --ignore-gpu-blacklist
 --enable-gpu-rasterization
