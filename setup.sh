@@ -108,9 +108,9 @@ gsettings set org.gnome.desktop.interface monospace-font-name 'Noto Sans Mono 10
 
 # Misc changes
 gsettings set org.gnome.desktop.calendar show-weekdate true
-gsettings set org.gtk.Settings.FileChooser sort-directories-first true
 
 ## Nautilus
+gsettings set org.gtk.Settings.FileChooser sort-directories-first true
 gsettings set org.gnome.nautilus.preferences click-policy 'single'
 gsettings set org.gnome.nautilus.icon-view default-zoom-level 'standard'
 
@@ -200,7 +200,7 @@ flatpak run com.visualstudio.code --install-extension ms-vscode-remote.remote-ss
 
 # Chrome - Enable GPU acceleration
 mkdir -p ${HOME}/.var/app/com.google.Chrome/config
-tee -a ~/.var/app/com.google.Chrome/config/chrome-flags.conf << EOF
+tee -a ${HOME}/.var/app/com.google.Chrome/config/chrome-flags.conf << EOF
 --ignore-gpu-blacklist
 --enable-gpu-rasterization
 --enable-zero-copy
@@ -210,7 +210,7 @@ EOF
 
 # Chromium - Enable GPU acceleration
 mkdir -p ${HOME}/.var/app/org.chromium.Chromium/config
-tee -a ~/.var/app/org.chromium.Chromium/config/chromium-flags.conf << EOF
+tee -a ${HOME}/.var/app/org.chromium.Chromium/config/chromium-flags.conf << EOF
 --ignore-gpu-blacklist
 --enable-gpu-rasterization
 --enable-zero-copy
@@ -222,7 +222,7 @@ EOF
 podman build toolbox/ -t ${USER}/fedora-toolbox:latest
 toolbox create -c fedora-toolbox-35 -i ${USER}/fedora-toolbox
 
-# Start SSHD on login
+# Create SSH config file with toolbox host
 mkdir -p ${HOME}/.ssh
 chmod 700 ${HOME}/.ssh/
 tee -a ${HOME}/.ssh/config << EOF
@@ -237,7 +237,7 @@ chmod 600 ${HOME}/.ssh/config
 # Create systemd user units folder
 mkdir -p ${HOME}/.config/systemd/user
 
-# Start sshd on login
+# sshd systemd user service (start sshd on login)
 tee -a ${HOME}/.config/systemd/user/toolbox_sshd.service << EOF
 [Unit]
 Description=Launch sshd in Fedora Toolbox
@@ -254,7 +254,7 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now toolbox_sshd
 
-# Start syncthing on login
+# syncthing systemd user service (start syncthing on login)
 tee -a ${HOME}/.config/systemd/user/toolbox_syncthing.service << EOF
 [Unit]
 Description=Launch syncthing in Fedora Toolbox
@@ -274,8 +274,8 @@ systemctl --user enable --now toolbox_syncthing
 # Create bashrc.d configs folder
 mkdir -p ${HOME}/.bashrc.d/
 
-# Add aliases
-tee -a ~/.bashrc.d/aliases << EOF
+# Add bash aliases
+tee -a ${HOME}/.bashrc.d/aliases << EOF
 alias code="flatpak run com.visualstudio.code"
 alias te="toolbox enter"
 alias dark="gsettings set org.gnome.desktop.interface gtk-theme 'Fluent-grey-dark' && dconf write /org/gnome/shell/extensions/user-theme/name \"'Fluent-grey-dark'\""
