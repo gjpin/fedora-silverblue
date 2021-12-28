@@ -51,13 +51,13 @@ mkdir -p ${HOME}/.local/share/themes ${HOME}/.local/share/icons
 
 podman run -it --name gnome --volume ${HOME}/.local/share/themes:/gtk-theme:Z \
 --volume ${HOME}/.local/share/icons:/icon-theme:Z \
-quay.io/fedora/fedora:35 bash -c "dnf install -y sassc git; mkdir -p /gtk-theme; git clone https://github.com/vinceliuice/Fluent-gtk-theme.git; cd Fluent-gtk-theme; ./install.sh -t grey -s standard -i fedora --tweaks noborder solid -d /gtk-theme; mkdir -p /icon-theme; git clone https://github.com/vinceliuice/Fluent-icon-theme.git; cd Fluent-icon-theme; ./install.sh -a -d /icon-theme"
+quay.io/fedora/fedora:35 bash -c "dnf install -y sassc git; mkdir -p /gtk-theme; git clone https://github.com/vinceliuice/Fluent-gtk-theme.git; cd Fluent-gtk-theme; ./install.sh -t grey -s standard -i fedora --tweaks noborder solid -d /gtk-theme; mkdir -p /icon-theme; git clone https://github.com/vinceliuice/Tela-icon-theme.git; cd Tela-icon-theme; ./install.sh -d /icon-theme orange"
 
 podman rm -f gnome
 
 # Set GTK and icon themes
 gsettings set org.gnome.desktop.interface gtk-theme 'Fluent-grey-light'
-gsettings set org.gnome.desktop.interface icon-theme 'Fluent-orange'
+gsettings set org.gnome.desktop.interface icon-theme 'Tela-orange'
 
 # Set Gnome Shell theme
 dconf write /org/gnome/shell/extensions/user-theme/name "'Fluent-grey'"
