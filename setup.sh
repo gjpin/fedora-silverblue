@@ -271,6 +271,9 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now toolbox_syncthing
 
+# Set Firefox Flatpak as default browser
+xdg-settings set default-web-browser org.mozilla.firefox.desktop
+
 # Create bashrc.d configs folder
 mkdir -p ${HOME}/.bashrc.d/
 
