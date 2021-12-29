@@ -1,6 +1,7 @@
 FROM registry.fedoraproject.org/fedora-toolbox:35
 
 # Install extra packages
+RUN dnf update -y
 COPY extra-packages /
 RUN dnf -y install $(<extra-packages)
 RUN rm /extra-packages
