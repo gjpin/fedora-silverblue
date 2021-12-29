@@ -37,14 +37,9 @@ wget https://extensions.gnome.org/extension-data/user-themegnome-shell-extension
 gnome-extensions install user-themegnome-shell-extensions.gcampax.github.com.v48.shell-extension.zip
 rm user-themegnome-shell-extensions.gcampax.github.com.v48.shell-extension.zip
 
-## https://extensions.gnome.org/extension/3193/blur-my-shell/
-wget https://extensions.gnome.org/extension-data/blur-my-shellaunetx.v25.shell-extension.zip
-gnome-extensions install blur-my-shellaunetx.v25.shell-extension.zip
-rm blur-my-shellaunetx.v25.shell-extension.zip
-
 # Enable Gnome Shell extensions
 gsettings set org.gnome.shell disabled-extensions []
-gsettings set org.gnome.shell enabled-extensions "['user-theme@gnome-shell-extensions.gcampax.github.com', 'blur-my-shell@aunetx']"
+gsettings set org.gnome.shell enabled-extensions "['user-theme@gnome-shell-extensions.gcampax.github.com']"
 
 # Install GTK and icon themes
 mkdir -p ${HOME}/.local/share/themes ${HOME}/.local/share/icons
@@ -61,7 +56,6 @@ gsettings set org.gnome.desktop.interface icon-theme 'Tela-orange'
 
 # Set Gnome Shell theme
 dconf write /org/gnome/shell/extensions/user-theme/name "'Fluent-grey'"
-dconf write /org/gnome/shell/extensions/blur-my-shell/blur-panel false
 
 # Allow Flatpaks to access GTK themes and icons
 sudo flatpak override --filesystem=xdg-data/themes:ro
