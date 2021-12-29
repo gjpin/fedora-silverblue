@@ -170,16 +170,21 @@ flatpak install -y flathub com.github.tchx84.Flatseal
 flatpak install -y flathub-beta com.google.Chrome
 flatpak install -y flathub com.usebottles.bottles
 # flatpak install -y flathub com.valvesoftware.Steam
-# sudo flatpak override --filesystem=/media/${USER}/data/games/steam com.valvesoftware.Steam
+# sudo flatpak override --filesystem=/run/media/${USER}/data/games/steam com.valvesoftware.Steam
 # flatpak install flathub-beta net.lutris.Lutris//beta
 # flatpak install -y flathub org.gnome.Platform.Compat.i386 org.freedesktop.Platform.GL32.default org.freedesktop.Platform.GL.default
-# sudo flatpak override --filesystem=/media/${USER}/data/games/lutris net.lutris.Lutris
+# sudo flatpak override --filesystem=/run/media/${USER}/data/games/lutris net.lutris.Lutris
 
-# Force GTK theme for some apps
-# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark com.visualstudio.code
-# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark com.spotify.Client
-# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark org.gimp.GIMP
-# sudo flatpak override --env=GTK_THEME=Fluent-grey-dark org.blender.Blender
+# KeePassXC permissions override
+sudo flatpak override --nofilesystem=host org.keepassxc.KeePassXC
+sudo flatpak override --nodevice=all org.keepassxc.KeePassXC
+sudo flatpak override --nosocket=x11 org.keepassxc.KeePassXC
+sudo flatpak override --unshare=network org.keepassxc.KeePassXC
+sudo flatpak override --filesystem=${HOME}/Sync/credentials org.keepassxc.KeePassXC
+
+# Authenticator permissions override
+sudo flatpak override --nodevice=all com.belmoussaoui.Authenticator
+sudo flatpak override --unshare=network com.belmoussaoui.Authenticator
 
 # VSCode - Import user settings
 mkdir -p ${HOME}/.var/app/com.visualstudio.code/config/Code/User
