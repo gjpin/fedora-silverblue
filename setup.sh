@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################
 ##### General
@@ -12,7 +12,7 @@ mkdir -p \
     ${HOME}/src
 
 # Add bash aliases
-tee -a ${HOME}/.bashrc.d/aliases << EOF
+tee ${HOME}/.bashrc.d/aliases << EOF
 alias code="flatpak run com.visualstudio.code"
 alias te="toolbox enter"
 EOF
@@ -72,7 +72,7 @@ cd .. && rm -rf firefox-gnome-theme/
 
 # Firefox theme updater
 tee ${HOME}/.local/bin/update-firefox-theme << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 
 git clone https://github.com/rafaelmardojai/firefox-gnome-theme
 cd firefox-gnome-theme
@@ -181,7 +181,7 @@ rm -f adw-*.tar.xz
 
 # GTK theme updater
 tee ${HOME}/.local/bin/update-gtk-theme << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 
 URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
 curl -sSL ${URL} -O
@@ -274,48 +274,47 @@ fi
 # References:
 # https://tailscale.com/blog/steam-deck/
 
-# # Install Tailscale
-# LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
-# curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
-# tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
-# tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
-# rm -f tailscale_*.tgz
+# Install Tailscale
+LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
+curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
+tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
+tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
+rm -f tailscale_*.tgz
 
-# # Start tailscaled
-# sudo systemd-run \
-#     --service-type=notify \
-#     --description="Tailscale node agent" \
-#     -u tailscaled.service \
-#     -p ExecStartPre="${HOME}/.local/bin/tailscaled --cleanup" \
-#     -p ExecStopPost="${HOME}/.local/bin/tailscaled --cleanup" \
-#     -p Restart=on-failure \
-#     -p RuntimeDirectory=tailscale \
-#     -p RuntimeDirectoryMode=0755 \
-#     -p StateDirectory=tailscale \
-#     -p StateDirectoryMode=0700 \
-#     -p CacheDirectory=tailscale \
-#     -p CacheDirectoryMode=0750 \
-#     "${HOME}/.local/bin/tailscaled" \
-#     "--state=/var/lib/tailscale/tailscaled.state" \
-#     "--socket=/run/tailscale/tailscaled.sock"
+# Create tailscaled alias
+tee ${HOME}/.bashrc.d/tailscale << 'EOF'
+alias start-tailscaled='(sudo systemd-run \
+    --service-type=notify \
+    --description="Tailscale node agent" \
+    -u tailscaled.service \
+    -p ExecStartPre="${HOME}/.local/bin/tailscaled --cleanup" \
+    -p ExecStopPost="${HOME}/.local/bin/tailscaled --cleanup" \
+    -p Restart=on-failure \
+    -p RuntimeDirectory=tailscale \
+    -p RuntimeDirectoryMode=0755 \
+    -p StateDirectory=tailscale \
+    -p StateDirectoryMode=0700 \
+    -p CacheDirectory=tailscale \
+    -p CacheDirectoryMode=0750 \
+    "${HOME}/.local/bin/tailscaled" \
+    "--state=/var/lib/tailscale/tailscaled.state" \
+    "--socket=/run/tailscale/tailscaled.sock")'
+EOF
 
-# # Login to tailscale
-# sudo tailscale up --operator=${USER}
+# Tailscale updater
+tee ${HOME}/.local/bin/update-tailscale << 'EOF'
+#!/usr/bin/env bash
 
-# # Tailscale updater
-# tee ${HOME}/.local/bin/update-tailscale << 'EOF'
-# #!/bin/bash
+LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
+INSTALLED_TAILSCALE_VERSION=$(tailscale --version | head -n 1)
 
-# LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
-# INSTALLED_TAILSCALE_VERSION=$(tailscale --version | head -n 1)
+if [ "$LATEST_TAILSCALE_VERSION" != "$INSTALLED_TAILSCALE_VERSION" ]; then
+    rm -f ${HOME}/.local/bin/{tailscale,tailscaled}
+    curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
+    tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
+    tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
+    rm -f tailscale_*.tgz
+fi
+EOF
 
-# if [ "$LATEST_TAILSCALE_VERSION" != "$INSTALLED_TAILSCALE_VERSION" ]; then
-#     rm -f ${HOME}/.local/bin/{tailscale,tailscaled}
-#     curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
-#     tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
-#     tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
-#     rm -f tailscale_*.tgz
-# fi
-# EOF
-
-# chmod +x ${HOME}/.local/bin/update-tailscale
+chmod +x ${HOME}/.local/bin/update-tailscale
