@@ -9,6 +9,7 @@ mkdir -p \
     ${HOME}/.bashrc.d \
     ${HOME}/.local/bin \
     ${HOME}/.themes \
+    ${HOME}/.local/share/gnome-shell/extensions \
     ${HOME}/src
 
 # Add bash aliases
@@ -101,7 +102,7 @@ sudo flatpak install -y flathub net.cozic.joplin_desktop
 sudo flatpak install -y flathub rest.insomnia.Insomnia
 sudo flatpak install -y flathub org.gimp.GIMP
 sudo flatpak install -y flathub org.blender.Blender
-sudo flatpak install -y flathub com.mattjakeman.ExtensionManager
+sudo flatpak install -y flathub org.gnome.Extensions
 sudo flatpak install -y flathub com.usebottles.bottles && \
     sudo flatpak override com.usebottles.bottles --filesystem=xdg-data/applications
 sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform
@@ -268,6 +269,30 @@ if cat /sys/class/dmi/id/chassis_type | grep 10 > /dev/null; then
 fi
 
 ################################################
+##### Gnome Shell Extensions
+################################################
+
+# Dark Variant
+# https://extensions.gnome.org/extension/4488/dark-variant/
+sudo rpm-ostree install -y xprop
+
+curl -sSL https://extensions.gnome.org/extension-data/dark-varianthardpixel.eu.v8.shell-extension.zip -O
+EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -d \" -f4)
+mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
+unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
+gnome-extensions enable ${EXTENSION_UUID}
+rm -f *shell-extension.zip
+
+# AppIndicator and KStatusNotifierItem Support
+# https://extensions.gnome.org/extension/615/appindicator-support/
+curl -sSL https://extensions.gnome.org/extension-data/appindicatorsupportrgcjonas.gmail.com.v42.shell-extension.zip -O
+EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -d \" -f4)
+mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
+unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
+gnome-extensions enable ${EXTENSION_UUID}
+rm -f *shell-extension.zip
+
+################################################
 ##### Tailscale
 ################################################
 
@@ -281,7 +306,7 @@ tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards 
 tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
 rm -f tailscale_*.tgz
 
-# Create tailscaled alias
+# Create tailscaled aliases
 tee ${HOME}/.bashrc.d/tailscale << 'EOF'
 alias start-tailscaled='(sudo systemd-run \
     --service-type=notify \
@@ -299,6 +324,8 @@ alias start-tailscaled='(sudo systemd-run \
     "${HOME}/.local/bin/tailscaled" \
     "--state=/var/lib/tailscale/tailscaled.state" \
     "--socket=/run/tailscale/tailscaled.sock")'
+
+alias stop-tailscaled="sudo systemctl stop tailscaled.service"
 EOF
 
 # Tailscale updater
