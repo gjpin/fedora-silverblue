@@ -1,225 +1,143 @@
-# Set versions
-NOMAD_VERSION=1.2.3
-CONSUL_VERSION=1.11.1
-VAULT_VERSION=1.9.2
-TERRAFORM_VERSION=1.1.2
-GOLANG_VERSION=1.17.5
-INTER_VERSION=3.19
+#!/bin/bash
 
-# Add Flathub and Flathub Beta repos
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak remote-add --if-not-exists flathub-beta https://flathub.org/beta-repo/flathub-beta.flatpakrepo
-flatpak update --appstream
+################################################
+##### General
+################################################
 
-# Remove Firefox RPM
-rpm-ostree override remove firefox
+# Create user folders
+mkdir -p \
+    ${HOME}/.bashrc.d \
+    ${HOME}/.local/bin \
+    ${HOME}/.themes \
+    ${HOME}/src
 
-# Install Firefox Flatpak
-flatpak install -y flathub org.mozilla.firefox
-flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/21.08
-sudo flatpak override --socket=wayland --env=MOZ_ENABLE_WAYLAND=1 org.mozilla.firefox
+# Add bash aliases
+tee -a ${HOME}/.bashrc.d/aliases << EOF
+alias code="flatpak run com.visualstudio.code"
+alias te="toolbox enter"
+EOF
 
-# Open Firefox and then manually close it to create profile folder
-echo "Close Firefox window to proceed with setup"
-flatpak run org.mozilla.firefox
+# Updater bash function
+tee ${HOME}/.bashrc.d/update-all << EOF
+update-all() {
+  # Update system
+  sudo rpm-ostree upgrade
 
-# Install Firefox theme
-git clone https://github.com/vinceliuice/Fluent-gtk-theme.git
-cd Fluent-gtk-theme
-cp -r src/firefox/chrome/ ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox/*-release
-cp src/firefox/configuration/user.js ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox/*-release
-cd ..
-rm -rf Fluent-gtk-theme
+  # Update Flatpak apps
+  flatpak update -y
 
-# Install Gnome Shell extensions
-## https://extensions.gnome.org/extension/19/user-themes/
-wget https://extensions.gnome.org/extension-data/user-themegnome-shell-extensions.gcampax.github.com.v48.shell-extension.zip
-gnome-extensions install user-themegnome-shell-extensions.gcampax.github.com.v48.shell-extension.zip
-rm user-themegnome-shell-extensions.gcampax.github.com.v48.shell-extension.zip
-
-# Enable Gnome Shell extensions
-gsettings set org.gnome.shell disabled-extensions []
-gsettings set org.gnome.shell enabled-extensions "['user-theme@gnome-shell-extensions.gcampax.github.com']"
-
-# Install GTK and icon themes
-mkdir -p ${HOME}/.local/share/themes ${HOME}/.local/share/icons
-
-podman run -it --name gnome --volume ${HOME}/.local/share/themes:/gtk-theme:Z \
---volume ${HOME}/.local/share/icons:/icon-theme:Z \
-quay.io/fedora/fedora:35 bash -c "dnf install -y sassc git; mkdir -p /gtk-theme; git clone https://github.com/vinceliuice/Fluent-gtk-theme.git; cd Fluent-gtk-theme; ./install.sh -t grey -s standard -i fedora --tweaks noborder solid -d /gtk-theme; mkdir -p /icon-theme; git clone https://github.com/vinceliuice/Tela-icon-theme.git; cd Tela-icon-theme; ./install.sh -d /icon-theme orange"
-
-podman rm -f gnome
-
-# Set GTK and icon themes
-gsettings set org.gnome.desktop.interface gtk-theme 'Fluent-grey-light'
-gsettings set org.gnome.desktop.interface icon-theme 'Tela-orange'
-
-# Set Gnome Shell theme
-dconf write /org/gnome/shell/extensions/user-theme/name "'Fluent-grey'"
-
-# Allow Flatpaks to access GTK themes and icons
-sudo flatpak override --filesystem=xdg-data/themes:ro
-sudo flatpak override --filesystem=xdg-data/icons:ro
-
-# Install fonts
-mkdir -p ${HOME}/.local/share/fonts
-
-## Inter
-mkdir inter
-cd inter
-curl -sSL https://github.com/rsms/inter/releases/download/v${INTER_VERSION}/Inter-${INTER_VERSION}.zip -o inter.zip
-unzip inter.zip
-cp "Inter Desktop"/*.otf ${HOME}/.local/share/fonts
-cd ..
-rm -rf inter
-
-## Google Noto Sans Mono
-mkdir noto-sans-mono
-cd noto-sans-mono
-curl -sSL https://fonts.google.com/download?family=Noto%20Sans%20Mono -o noto-sans-mono.zip
-unzip noto-sans-mono.zip
-cp static/NotoSansMono/*.ttf ${HOME}/.local/share/fonts
-cd ..
-rm -rf noto-sans-mono
-
-## Google Noto Sans
-mkdir noto-sans
-cd noto-sans
-curl -sSL https://fonts.google.com/download?family=Noto%20Sans -o noto-sans.zip
-unzip noto-sans.zip
-cp *.ttf ${HOME}/.local/share/fonts
-cd ..
-rm -rf noto-sans
-
-# Update font cache
-fc-cache -v
-
-# Set fonts
-gsettings set org.gnome.desktop.interface document-font-name 'Inter 9'
-gsettings set org.gnome.desktop.interface font-name 'Inter 9'
-gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Inter Bold 9'
-gsettings set org.gnome.desktop.interface monospace-font-name 'Noto Sans Mono 10'
-
-# Misc changes
-gsettings set org.gnome.desktop.calendar show-weekdate true
-
-## Nautilus
-gsettings set org.gtk.Settings.FileChooser sort-directories-first true
-gsettings set org.gnome.nautilus.preferences click-policy 'single'
-gsettings set org.gnome.nautilus.icon-view default-zoom-level 'standard'
-
-## Text editor
-dconf write /org/gnome/gedit/preferences/ui/side-panel-visible true
-dconf write /org/gnome/gedit/preferences/editor/wrap-mode "'none'"
-
-## Laptop specific
-if [[ $(cat /sys/class/dmi/id/chassis_type) -eq 10 ]]
-then
-    gsettings set org.gnome.desktop.interface show-battery-percentage true
-    gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
-    gsettings set org.gnome.desktop.peripherals.touchpad disable-while-typing false
-fi
-
-## Gnome Terminal padding
-tee -a ${HOME}/.config/gtk-3.0/gtk.css << EOF
-VteTerminal,
-TerminalScreen,
-vte-terminal {
-    padding: 5px 5px 5px 5px;
-    -VteTerminal-inner-border: 5px 5px 5px 5px;
+  # Update GTK and Firefox themes
+  update-themes
 }
 EOF
 
-# Shortcuts
-## Terminal
-gsettings set org.gnome.Terminal.Legacy.Keybindings:/org/gnome/terminal/legacy/keybindings/ next-tab '<Primary>Tab'
-gsettings set org.gnome.Terminal.Legacy.Keybindings:/org/gnome/terminal/legacy/keybindings/ close-tab '<Primary><Shift>w'
+# Set default firewall zone
+sudo firewall-cmd --set-default-zone=block
 
-## Window management
-gsettings set org.gnome.desktop.wm.keybindings close "['<Shift><Super>q']"
+################################################
+##### Flathub
+################################################
 
-## Applications
-gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/']"
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ binding '<Super>Return'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ command 'gnome-terminal'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ name 'gnome-terminal'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ binding '<Super>e'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ command 'nautilus'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ name 'nautilus'
+# Add Flathub repo
+sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+sudo flatpak remote-modify flathub --enable
+sudo flatpak update --appstream
 
-## Screenshots
-gsettings set org.gnome.settings-daemon.plugins.media-keys area-screenshot-clip "['<Super><Shift>s']"
+################################################
+##### Firefox
+################################################
 
-# Install Flatpak applications
-flatpak install -y flathub org.gnome.Extensions
-flatpak install -y flathub com.belmoussaoui.Authenticator
-flatpak install -y flathub com.visualstudio.code
-flatpak install -y flathub com.spotify.Client
-flatpak install -y flathub org.gimp.GIMP
-flatpak install -y flathub org.blender.Blender
-flatpak install -y flathub org.videolan.VLC
-flatpak install -y flathub org.chromium.Chromium
-flatpak install -y flathub org.keepassxc.KeePassXC
-flatpak install -y flathub com.github.tchx84.Flatseal
-flatpak install -y flathub-beta com.google.Chrome
-flatpak install -y flathub com.usebottles.bottles
-# flatpak install -y flathub com.valvesoftware.Steam
-# sudo flatpak override --filesystem=/run/media/${USER}/data/games/steam com.valvesoftware.Steam
-# flatpak install flathub-beta net.lutris.Lutris//beta
-# flatpak install -y flathub org.gnome.Platform.Compat.i386 org.freedesktop.Platform.GL32.default org.freedesktop.Platform.GL.default
-# sudo flatpak override --filesystem=/run/media/${USER}/data/games/lutris net.lutris.Lutris
+# Remove Firefox RPM
+sudo rpm-ostree override remove firefox
 
-# KeePassXC permissions override
-sudo flatpak override --nofilesystem=host org.keepassxc.KeePassXC
-sudo flatpak override --nodevice=all org.keepassxc.KeePassXC
-sudo flatpak override --nosocket=x11 org.keepassxc.KeePassXC
-sudo flatpak override --unshare=network org.keepassxc.KeePassXC
-sudo flatpak override --filesystem=${HOME}/Sync/credentials org.keepassxc.KeePassXC
+# Install Firefox from Flathub
+sudo flatpak install -y flathub org.mozilla.firefox
+sudo flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full
 
-# Authenticator permissions override
-sudo flatpak override --nodevice=all com.belmoussaoui.Authenticator
-sudo flatpak override --unshare=network com.belmoussaoui.Authenticator
+# Set Firefox Flatpak as default browser
+xdg-settings set default-web-browser org.mozilla.firefox.desktop
 
-# VSCode - Import user settings
+# VA-API
+sudo rpm-ostree install libva libva-utils
+
+################################################
+##### Applications
+################################################
+
+sudo flatpak install -y flathub org.gnome.World.Secrets
+sudo flatpak install -y flathub com.belmoussaoui.Authenticator
+sudo flatpak install -y flathub org.keepassxc.KeePassXC
+sudo flatpak install -y flathub com.spotify.Client
+sudo flatpak install -y flathub com.github.tchx84.Flatseal
+sudo flatpak install -y flathub org.gaphor.Gaphor
+sudo flatpak install -y flathub net.cozic.joplin_desktop
+sudo flatpak install -y flathub rest.insomnia.Insomnia
+sudo flatpak install -y flathub org.gimp.GIMP
+sudo flatpak install -y flathub org.blender.Blender
+sudo flatpak install -y flathub com.mattjakeman.ExtensionManager
+sudo flatpak install -y flathub com.usebottles.bottles && \
+    sudo flatpak override com.usebottles.bottles --filesystem=xdg-data/applications
+sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform
+sudo flatpak install -y flathub org.kde.PlatformTheme.QtSNI
+sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration
+
+
+################################################
+##### Visual Studio Code
+################################################
+
+# Install VSCode
+sudo flatpak install -y flathub com.visualstudio.code
+
+# Configure VSCode
 mkdir -p ${HOME}/.var/app/com.visualstudio.code/config/Code/User
 tee -a ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
 {
     "telemetry.telemetryLevel": "off",
     "window.menuBarVisibility": "toggle",
     "workbench.startupEditor": "none",
-    "editor.fontFamily": "'Noto Sans Mono', 'Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
+    "editor.fontFamily": "'Noto Sans Mono', 'Droid Sans Mono', 'monospace', 'Droid Sans Fallback'",
     "workbench.enableExperiments": false,
-    "workbench.settings.enableNaturalLanguageSearch": false
+    "workbench.settings.enableNaturalLanguageSearch": false,
+    "workbench.iconTheme": null,
+    "workbench.tree.indent": 12,
+    "window.titleBarStyle": "native",
+    "workbench.preferredDarkColorTheme": "Adwaita Dark",
+    "workbench.preferredLightColorTheme": "Adwaita Light",
+    "editor.fontWeight": "500",
+    "redhat.telemetry.enabled": false,
+    "files.associations": {
+        "*.j2": "terraform",
+        "*.hcl": "terraform",
+        "*.bu": "yaml",
+        "*.ign": "json",
+        "*.service": "ini"
+    },
+    "extensions.ignoreRecommendations": true,
+    "workbench.colorTheme": "Adwaita Dark & default syntax highlighting",
+    "editor.formatOnSave": true,
+    "git.enableSmartCommit": true,
+    "git.confirmSync": false,
+    "git.autofetch": true
 }
 EOF
 
-# VSCode - Install Remote SSH extension
+# Install extensions
 flatpak run com.visualstudio.code --install-extension ms-vscode-remote.remote-ssh
 flatpak run com.visualstudio.code --install-extension ms-vscode-remote.remote-ssh-edit
+flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
+flatpak run com.visualstudio.code --install-extension golang.Go
+flatpak run com.visualstudio.code --install-extension HashiCorp.terraform
+flatpak run com.visualstudio.code --install-extension redhat.ansible
+flatpak run com.visualstudio.code --install-extension dbaeumer.vscode-eslint
 
-# Chrome - Enable GPU acceleration
-mkdir -p ${HOME}/.var/app/com.google.Chrome/config
-tee -a ${HOME}/.var/app/com.google.Chrome/config/chrome-flags.conf << EOF
---ignore-gpu-blacklist
---enable-gpu-rasterization
---enable-zero-copy
---enable-features=VaapiVideoDecoder
---use-vulkan
-EOF
-
-# Chromium - Enable GPU acceleration
-mkdir -p ${HOME}/.var/app/org.chromium.Chromium/config
-tee -a ${HOME}/.var/app/org.chromium.Chromium/config/chromium-flags.conf << EOF
---ignore-gpu-blacklist
---enable-gpu-rasterization
---enable-zero-copy
---enable-features=VaapiVideoDecoder
---use-vulkan
-EOF
+################################################
+##### Toolbox
+################################################
 
 # Create custom toolbox
 podman build toolbox/ -t ${USER}/fedora-toolbox:latest
-toolbox create -c fedora-toolbox-35 -i ${USER}/fedora-toolbox
+toolbox create -c fedora-toolbox-36 -i ${USER}/fedora-toolbox
 
 # Create SSH config file with toolbox host
 mkdir -p ${HOME}/.ssh
@@ -243,7 +161,7 @@ Description=Launch sshd in Fedora Toolbox
 
 [Service]
 Type=longrun
-ExecPre=/usr/bin/podman start fedora-toolbox-35
+ExecPre=/usr/bin/podman start fedora-toolbox-36
 ExecStart=/usr/bin/toolbox run sudo /usr/sbin/sshd -D
 
 [Install]
@@ -260,7 +178,7 @@ Description=Launch syncthing in Fedora Toolbox
 
 [Service]
 Type=longrun
-ExecPre=/usr/bin/podman start fedora-toolbox-35
+ExecPre=/usr/bin/podman start fedora-toolbox-36
 ExecStart=/usr/bin/toolbox run /usr/bin/syncthing
 
 [Install]
@@ -270,53 +188,118 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now toolbox_syncthing
 
-# Set Firefox Flatpak as default browser
-xdg-settings set default-web-browser org.mozilla.firefox.desktop
+################################################
+##### Firefox and GTK themes
+################################################
 
-# Create bashrc.d configs folder
-mkdir -p ${HOME}/.bashrc.d/
+# Install Firefox Gnome theme
+git clone https://github.com/rafaelmardojai/firefox-gnome-theme
+cd firefox-gnome-theme
+./scripts/install.sh -f ~/.var/app/org.mozilla.firefox/.mozilla/firefox
+cd .. && rm -rf firefox-gnome-theme/
 
-# Add bash aliases
-tee -a ${HOME}/.bashrc.d/aliases << EOF
-alias code="flatpak run com.visualstudio.code"
-alias te="toolbox enter"
-alias dark="gsettings set org.gnome.desktop.interface gtk-theme 'Fluent-grey-dark' && dconf write /org/gnome/shell/extensions/user-theme/name \"'Fluent-grey-dark'\""
-alias light="gsettings set org.gnome.desktop.interface gtk-theme 'Fluent-grey-light' && dconf write /org/gnome/shell/extensions/user-theme/name \"'Fluent-grey'\""
+# Download and install latest adw-gtk3 release
+REPO='lassekongo83/adw-gtk3'
+URL=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
+curl -sSL ${URL} -O
+tar -xf adw-*.tar.xz -C ${HOME}/.themes/
+rm -f adw-*.tar.xz
+
+# Install adw-gtk3 flatpak
+sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3 org.gtk.Gtk3theme.adw-gtk3-dark
+
+# Firefox and GTK themes updater
+tee ${HOME}/.local/bin/update-themes << 'EOF'
+#!/bin/bash
+
+# adw-gtk3
+REPO='lassekongo83/adw-gtk3'
+URL=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
+curl -sSL ${URL} -O
+rm -rf adw-gtk3*
+tar -xf adw-*.tar.xz -C ${HOME}/.themes/
+rm -f adw-*.tar.xz
+
+# firefox-gnome-theme
+git clone https://github.com/rafaelmardojai/firefox-gnome-theme
+cd firefox-gnome-theme
+./scripts/install.sh -f ~/.var/app/org.mozilla.firefox/.mozilla/firefox
+cd .. && rm -rf firefox-gnome-theme/
 EOF
 
-# Create local bin folder
-mkdir -p ${HOME}/.local/bin
+chmod +x ${HOME}/.local/bin/update-themes
 
-# Install applications
-curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
-unzip nomad.zip
-mv nomad ${HOME}/.local/bin/nomad
-rm nomad.zip
+# Set adw-gtk3 theme
+gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3'
+gsettings set org.gnome.desktop.interface color-scheme 'default'
 
-curl -sSL https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip -o consul.zip
-unzip consul.zip
-mv consul ${HOME}/.local/bin/consul
-rm consul.zip
+################################################
+##### Shortcuts
+################################################
 
-curl -sSL https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip -o vault.zip
-unzip vault.zip
-mv vault ${HOME}/.local/bin/vault
-rm vault.zip
+# Terminal
+gsettings set org.gnome.Terminal.Legacy.Keybindings:/org/gnome/terminal/legacy/keybindings/ next-tab '<Primary>Tab'
+gsettings set org.gnome.Terminal.Legacy.Keybindings:/org/gnome/terminal/legacy/keybindings/ close-tab '<Primary><Shift>w'
 
-curl -sSL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip -o terraform.zip
-unzip terraform.zip
-mv terraform ${HOME}/.local/bin/terraform
-rm terraform.zip
+# Windows management
+gsettings set org.gnome.desktop.wm.keybindings close "['<Shift><Super>q']"
 
-# Install hey
-wget https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
-mv hey_linux_amd64 ${HOME}/.local/bin/hey
-chmod +x ${HOME}/.local/bin/hey
+# Screenshots
+gsettings set org.gnome.shell.keybindings show-screenshot-ui "['<Shift><Super>s']"
 
-# Install Golang
-touch ${HOME}/.bashrc.d/exports
-wget https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
-rm -rf ${HOME}/.local/go
-tar -C ${HOME}/.local -xzf go${GOLANG_VERSION}.linux-amd64.tar.gz
-grep -qxF 'export PATH=$PATH:${HOME}/.local/go/bin' ${HOME}/.bashrc.d/exports || echo 'export PATH=$PATH:${HOME}/.local/go/bin' >> ${HOME}/.bashrc.d/exports
-rm go${GOLANG_VERSION}.linux-amd64.tar.gz
+# Applications
+gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/']"
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ binding '<Super>Return'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ command 'gnome-terminal'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ name 'gnome-terminal'
+
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ binding '<Super>E'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ command 'nautilus'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/ name 'nautilus'
+
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/ binding '<Shift><Control>Escape'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/ command 'gnome-system-monitor'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/ name 'gnome-system-monitor'
+
+# Change alt+tab behaviour
+gsettings set org.gnome.desktop.wm.keybindings switch-applications "@as []"
+gsettings set org.gnome.desktop.wm.keybindings switch-applications-backward "@as []"
+gsettings set org.gnome.desktop.wm.keybindings switch-windows "['<Alt>Tab']"
+gsettings set org.gnome.desktop.wm.keybindings switch-windows-backward "['<Shift><Alt>Tab']"
+
+# Switch to workspace
+gsettings set org.gnome.shell.keybindings switch-to-application-1 "@as []"
+gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-1 "['<Super>1']"
+gsettings set org.gnome.shell.keybindings switch-to-application-2 "@as []"
+gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-2 "['<Super>2']"
+gsettings set org.gnome.shell.keybindings switch-to-application-3 "@as []"
+gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-3 "['<Super>3']"
+gsettings set org.gnome.shell.keybindings switch-to-application-4 "@as []"
+gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-4 "['<Super>4']"
+
+# Move window to workspace
+gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-1 "['<Shift><Super>exclam']"
+gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-2 "['<Shift><Super>at']"
+gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-3 "['<Shift><Super>numbersign']"
+gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-4 "['<Shift><Super>dollar']"
+
+################################################
+##### UI / UX
+################################################
+
+# Volume
+gsettings set org.gnome.desktop.sound allow-volume-above-100-percent true
+
+# Calendar
+gsettings set org.gnome.desktop.calendar show-weekdate true
+
+# Nautilus
+gsettings set org.gtk.Settings.FileChooser sort-directories-first true
+gsettings set org.gnome.nautilus.icon-view default-zoom-level 'standard'
+
+# Laptop specific
+if cat /sys/class/dmi/id/chassis_type | grep 10 > /dev/null; then
+  gsettings set org.gnome.desktop.interface show-battery-percentage true
+  gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
+  gsettings set org.gnome.desktop.peripherals.touchpad disable-while-typing false
+fi
