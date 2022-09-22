@@ -173,7 +173,6 @@ sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3 org.gtk.Gtk3theme.adw
 # Download and install latest adw-gtk3 release
 URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
 curl -sSL ${URL} -O
-rm -rf adw-gtk3*
 tar -xf adw-*.tar.xz -C ${HOME}/.themes/
 rm -f adw-*.tar.xz
 
@@ -183,7 +182,7 @@ tee ${HOME}/.local/bin/update-gtk-theme << 'EOF'
 
 URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
 curl -sSL ${URL} -O
-rm -rf adw-gtk3*
+rm -rf ${HOME}/.themes/adw-gtk3*
 tar -xf adw-*.tar.xz -C ${HOME}/.themes/
 rm -f adw-*.tar.xz
 EOF
