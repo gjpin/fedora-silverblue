@@ -10,6 +10,7 @@ mkdir -p \
     ${HOME}/.local/bin \
     ${HOME}/.themes \
     ${HOME}/.local/share/gnome-shell/extensions \
+    ${HOME}/.config/systemd/user \
     ${HOME}/src
 
 # Add bash aliases
@@ -39,7 +40,7 @@ update-all() {
 EOF
 
 # Set default firewall zone
-sudo firewall-cmd --set-default-zone=block
+sudo firewall-cmd --set-default-zone=FedoraWorkstation
 
 ################################################
 ##### Flathub
@@ -116,6 +117,13 @@ sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decorat
 # Install VSCode
 sudo flatpak install -y flathub com.visualstudio.code
 
+# Install extensions
+flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
+flatpak run com.visualstudio.code --install-extension golang.Go
+flatpak run com.visualstudio.code --install-extension HashiCorp.terraform
+flatpak run com.visualstudio.code --install-extension redhat.ansible
+flatpak run com.visualstudio.code --install-extension dbaeumer.vscode-eslint
+
 # Configure VSCode
 mkdir -p ${HOME}/.var/app/com.visualstudio.code/config/Code/User
 tee ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
@@ -159,13 +167,6 @@ tee ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
     }
 }
 EOF
-
-# Install extensions
-flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
-flatpak run com.visualstudio.code --install-extension golang.Go
-flatpak run com.visualstudio.code --install-extension HashiCorp.terraform
-flatpak run com.visualstudio.code --install-extension redhat.ansible
-flatpak run com.visualstudio.code --install-extension dbaeumer.vscode-eslint
 
 ################################################
 ##### GTK theme
@@ -300,14 +301,14 @@ rm -f *shell-extension.zip
 # https://tailscale.com/blog/steam-deck/
 
 # Install Tailscale
-LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
-curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
+TAILSCALE_LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
+curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
 tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
 tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
 rm -f tailscale_*.tgz
 
 # Create tailscaled aliases
-tee ${HOME}/.bashrc.d/tailscale << 'EOF'
+tee ${HOME}/.bashrc.d/tailscale << EOF
 alias start-tailscaled='(sudo systemd-run \
     --service-type=notify \
     --description="Tailscale node agent" \
@@ -332,12 +333,12 @@ EOF
 tee ${HOME}/.local/bin/update-tailscale << 'EOF'
 #!/usr/bin/env bash
 
-LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
-INSTALLED_TAILSCALE_VERSION=$(tailscale --version | head -n 1)
+TAILSCALE_LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
+TAILSCALE_INSTALLED_VERSION=$(tailscale --version | head -n 1)
 
-if [ "$LATEST_TAILSCALE_VERSION" != "$INSTALLED_TAILSCALE_VERSION" ]; then
+if [ "$TAILSCALE_LATEST_VERSION" != "$TAILSCALE_INSTALLED_VERSION" ]; then
     rm -f ${HOME}/.local/bin/{tailscale,tailscaled}
-    curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
+    curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
     tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
     tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
     rm -f tailscale_*.tgz
@@ -345,3 +346,51 @@ fi
 EOF
 
 chmod +x ${HOME}/.local/bin/update-tailscale
+
+################################################
+##### Syncthing
+################################################
+
+# References:
+# https://github.com/syncthing/syncthing/blob/main/README-Docker.md
+# https://docs.syncthing.net/users/firewall.html
+
+# Create volume folder
+mkdir -p ${HOME}/containers/syncthing
+
+# Create systemd user service
+tee ${HOME}/.config/systemd/user/syncthing.service << EOF
+[Unit]
+Description=syncthing container
+After=firewalld.service
+
+[Service]
+ExecStartPre=-/usr/bin/podman kill syncthing
+ExecStartPre=-/usr/bin/podman rm syncthing
+ExecStartPre=/usr/bin/podman pull docker.io/syncthing/syncthing:latest
+ExecStart=/usr/bin/podman run -a \
+    --name=syncthing \
+    --hostname=syncthing \
+    -p 8384:8384/tcp \
+    -p 22000:22000/tcp \
+    -p 22000:22000/udp \
+    -p 21027:21027/udp \
+    -v ${HOME}/containers/syncthing:/var/syncthing:Z \
+    docker.io/syncthing/syncthing:latest
+ExecStop=/usr/bin/podman stop syncthing
+ExecStopPost=/usr/bin/podman rm syncthing
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable systemd user service
+systemctl --user daemon-reload
+systemctl --user enable syncthing.service
+
+# Open firewall ports
+sudo firewall-cmd --permanent --zone=FedoraWorkstation --add-port=21027/udp # For discovery broadcasts on IPv4 and multicasts on IPv6
+sudo firewall-cmd --permanent --zone=FedoraWorkstation --add-port=22000/tcp # TCP based sync protocol traffic
+sudo firewall-cmd --permanent --zone=FedoraWorkstation --add-port=22000/udp # QUIC based sync protocol traffic
+sudo firewall-cmd --reload
