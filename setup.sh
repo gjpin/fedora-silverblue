@@ -21,7 +21,7 @@ EOF
 tee ${HOME}/.bashrc.d/update-all << EOF
 update-all() {
   # Update system
-  sudo rpm-ostree upgrade
+  sudo rpm-ostree upgrade -y
 
   # Update Flatpak apps
   flatpak update -y
@@ -55,7 +55,8 @@ sudo rpm-ostree override remove firefox
 
 # Install Firefox from Flathub
 sudo flatpak install -y flathub org.mozilla.firefox
-sudo flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full
+sudo flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/21.08
+sudo flatpak install -y flathub org.freedesktop.Platform.GStreamer.gstreamer-vaapi/x86_64/21.08
 
 # Set Firefox Flatpak as default browser
 xdg-settings set default-web-browser org.mozilla.firefox.desktop
@@ -77,6 +78,11 @@ cd .. && rm -rf firefox-gnome-theme/
 EOF
 
 chmod +x ${HOME}/.local/bin/update-firefox-theme
+
+# Install Intel VA-API drivers if applicable
+if cat /proc/cpuinfo | grep vendor | grep "GenuineIntel" > /dev/null; then
+  sudo flatpak install -y flathub org.freedesktop.Platform.VAAPI.Intel/x86_64/21.08
+fi
 
 ################################################
 ##### Applications
