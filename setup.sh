@@ -31,6 +31,9 @@ update-all() {
 
   # Update GTK theme
   update-gtk-theme
+
+  # Update tailscale
+  update-tailscale
 }
 EOF
 
@@ -263,3 +266,56 @@ if cat /sys/class/dmi/id/chassis_type | grep 10 > /dev/null; then
   gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
   gsettings set org.gnome.desktop.peripherals.touchpad disable-while-typing false
 fi
+
+################################################
+##### Tailscale
+################################################
+
+# References:
+# https://tailscale.com/blog/steam-deck/
+
+# # Install Tailscale
+# LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
+# curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
+# tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
+# tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
+# rm -f tailscale_*.tgz
+
+# # Start tailscaled
+# sudo systemd-run \
+#     --service-type=notify \
+#     --description="Tailscale node agent" \
+#     -u tailscaled.service \
+#     -p ExecStartPre="${HOME}/.local/bin/tailscaled --cleanup" \
+#     -p ExecStopPost="${HOME}/.local/bin/tailscaled --cleanup" \
+#     -p Restart=on-failure \
+#     -p RuntimeDirectory=tailscale \
+#     -p RuntimeDirectoryMode=0755 \
+#     -p StateDirectory=tailscale \
+#     -p StateDirectoryMode=0700 \
+#     -p CacheDirectory=tailscale \
+#     -p CacheDirectoryMode=0750 \
+#     "${HOME}/.local/bin/tailscaled" \
+#     "--state=/var/lib/tailscale/tailscaled.state" \
+#     "--socket=/run/tailscale/tailscaled.sock"
+
+# # Login to tailscale
+# sudo tailscale up --operator=${USER}
+
+# # Tailscale updater
+# tee ${HOME}/.local/bin/update-tailscale << 'EOF'
+# #!/bin/bash
+
+# LATEST_TAILSCALE_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
+# INSTALLED_TAILSCALE_VERSION=$(tailscale --version | head -n 1)
+
+# if [ "$LATEST_TAILSCALE_VERSION" != "$INSTALLED_TAILSCALE_VERSION" ]; then
+#     rm -f ${HOME}/.local/bin/{tailscale,tailscaled}
+#     curl -sSL https://pkgs.tailscale.com/stable/tailscale_${LATEST_TAILSCALE_VERSION}_amd64.tgz -O
+#     tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
+#     tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
+#     rm -f tailscale_*.tgz
+# fi
+# EOF
+
+# chmod +x ${HOME}/.local/bin/update-tailscale
