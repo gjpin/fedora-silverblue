@@ -114,6 +114,7 @@ sudo flatpak install -y flathub rest.insomnia.Insomnia
 sudo flatpak install -y flathub org.gimp.GIMP
 sudo flatpak install -y flathub org.blender.Blender
 sudo flatpak install -y flathub org.gnome.Extensions
+sudo flatpak install -y flathub org.gnome.Builder
 sudo flatpak install -y flathub com.usebottles.bottles && \
     sudo flatpak override com.usebottles.bottles --filesystem=xdg-data/applications
 sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform
