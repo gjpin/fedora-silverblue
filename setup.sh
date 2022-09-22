@@ -26,8 +26,11 @@ update-all() {
   # Update Flatpak apps
   flatpak update -y
 
-  # Update GTK and Firefox themes
-  update-themes
+  # Update Firefox theme
+  update-firefox-theme
+
+  # Update GTK theme
+  update-gtk-theme
 }
 EOF
 
@@ -57,8 +60,23 @@ sudo flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full
 # Set Firefox Flatpak as default browser
 xdg-settings set default-web-browser org.mozilla.firefox.desktop
 
-# VA-API
-sudo rpm-ostree install libva libva-utils
+# Install Firefox Gnome theme
+git clone https://github.com/rafaelmardojai/firefox-gnome-theme
+cd firefox-gnome-theme
+./scripts/install.sh -f ~/.var/app/org.mozilla.firefox/.mozilla/firefox
+cd .. && rm -rf firefox-gnome-theme/
+
+# Firefox theme updater
+tee ${HOME}/.local/bin/update-firefox-theme << 'EOF'
+#!/bin/bash
+
+git clone https://github.com/rafaelmardojai/firefox-gnome-theme
+cd firefox-gnome-theme
+./scripts/install.sh -f ~/.var/app/org.mozilla.firefox/.mozilla/firefox
+cd .. && rm -rf firefox-gnome-theme/
+EOF
+
+chmod +x ${HOME}/.local/bin/update-firefox-theme
 
 ################################################
 ##### Applications
@@ -81,7 +99,6 @@ sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform
 sudo flatpak install -y flathub org.kde.PlatformTheme.QtSNI
 sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration
 
-
 ################################################
 ##### Visual Studio Code
 ################################################
@@ -91,7 +108,7 @@ sudo flatpak install -y flathub com.visualstudio.code
 
 # Configure VSCode
 mkdir -p ${HOME}/.var/app/com.visualstudio.code/config/Code/User
-tee -a ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
+tee ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
 {
     "telemetry.telemetryLevel": "off",
     "window.menuBarVisibility": "toggle",
@@ -107,24 +124,33 @@ tee -a ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << 
     "editor.fontWeight": "500",
     "redhat.telemetry.enabled": false,
     "files.associations": {
-        "*.j2": "terraform",
-        "*.hcl": "terraform",
-        "*.bu": "yaml",
-        "*.ign": "json",
-        "*.service": "ini"
+      "*.j2": "terraform",
+      "*.hcl": "terraform",
+      "*.bu": "yaml",
+      "*.ign": "json",
+      "*.service": "ini"
     },
     "extensions.ignoreRecommendations": true,
     "workbench.colorTheme": "Adwaita Dark & default syntax highlighting",
     "editor.formatOnSave": true,
     "git.enableSmartCommit": true,
     "git.confirmSync": false,
-    "git.autofetch": true
+    "git.autofetch": true,
+    "terminal.integrated.defaultProfile.linux": "toolbox",
+    "terminal.integrated.profiles.linux": {
+      "toolbox": {
+        "path": "/usr/bin/flatpak-spawn",
+        "args": ["--host", "--env=TERM=xterm-256color", "toolbox", "enter"]
+      },
+      "bash": {
+        "path": "/usr/bin/flatpak-spawn",
+        "args": ["--host", "--env=TERM=xterm-256color", "bash"]
+      }
+    }
 }
 EOF
 
 # Install extensions
-flatpak run com.visualstudio.code --install-extension ms-vscode-remote.remote-ssh
-flatpak run com.visualstudio.code --install-extension ms-vscode-remote.remote-ssh-edit
 flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
 flatpak run com.visualstudio.code --install-extension golang.Go
 flatpak run com.visualstudio.code --install-extension HashiCorp.terraform
@@ -132,102 +158,31 @@ flatpak run com.visualstudio.code --install-extension redhat.ansible
 flatpak run com.visualstudio.code --install-extension dbaeumer.vscode-eslint
 
 ################################################
-##### Toolbox
+##### GTK theme
 ################################################
-
-# Create custom toolbox
-podman build toolbox/ -t ${USER}/fedora-toolbox:latest
-toolbox create -c fedora-toolbox-36 -i ${USER}/fedora-toolbox
-
-# Create SSH config file with toolbox host
-mkdir -p ${HOME}/.ssh
-chmod 700 ${HOME}/.ssh/
-tee -a ${HOME}/.ssh/config << EOF
-Host toolbox
-	HostName localhost
-	Port 2222
-	StrictHostKeyChecking no
-	UserKnownHostsFile=/dev/null
-EOF
-chmod 600 ${HOME}/.ssh/config
-
-# Create systemd user units folder
-mkdir -p ${HOME}/.config/systemd/user
-
-# sshd systemd user service (start sshd on login)
-tee -a ${HOME}/.config/systemd/user/toolbox_sshd.service << EOF
-[Unit]
-Description=Launch sshd in Fedora Toolbox
-
-[Service]
-Type=longrun
-ExecPre=/usr/bin/podman start fedora-toolbox-36
-ExecStart=/usr/bin/toolbox run sudo /usr/sbin/sshd -D
-
-[Install]
-WantedBy=default.target
-EOF
-
-systemctl --user daemon-reload
-systemctl --user enable --now toolbox_sshd
-
-# syncthing systemd user service (start syncthing on login)
-tee -a ${HOME}/.config/systemd/user/toolbox_syncthing.service << EOF
-[Unit]
-Description=Launch syncthing in Fedora Toolbox
-
-[Service]
-Type=longrun
-ExecPre=/usr/bin/podman start fedora-toolbox-36
-ExecStart=/usr/bin/toolbox run /usr/bin/syncthing
-
-[Install]
-WantedBy=default.target
-EOF
-
-systemctl --user daemon-reload
-systemctl --user enable --now toolbox_syncthing
-
-################################################
-##### Firefox and GTK themes
-################################################
-
-# Install Firefox Gnome theme
-git clone https://github.com/rafaelmardojai/firefox-gnome-theme
-cd firefox-gnome-theme
-./scripts/install.sh -f ~/.var/app/org.mozilla.firefox/.mozilla/firefox
-cd .. && rm -rf firefox-gnome-theme/
-
-# Download and install latest adw-gtk3 release
-REPO='lassekongo83/adw-gtk3'
-URL=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
-curl -sSL ${URL} -O
-tar -xf adw-*.tar.xz -C ${HOME}/.themes/
-rm -f adw-*.tar.xz
 
 # Install adw-gtk3 flatpak
 sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3 org.gtk.Gtk3theme.adw-gtk3-dark
 
-# Firefox and GTK themes updater
-tee ${HOME}/.local/bin/update-themes << 'EOF'
-#!/bin/bash
-
-# adw-gtk3
-REPO='lassekongo83/adw-gtk3'
-URL=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
+# Download and install latest adw-gtk3 release
+URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
 curl -sSL ${URL} -O
 rm -rf adw-gtk3*
 tar -xf adw-*.tar.xz -C ${HOME}/.themes/
 rm -f adw-*.tar.xz
 
-# firefox-gnome-theme
-git clone https://github.com/rafaelmardojai/firefox-gnome-theme
-cd firefox-gnome-theme
-./scripts/install.sh -f ~/.var/app/org.mozilla.firefox/.mozilla/firefox
-cd .. && rm -rf firefox-gnome-theme/
+# GTK theme updater
+tee ${HOME}/.local/bin/update-gtk-theme << 'EOF'
+#!/bin/bash
+
+URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
+curl -sSL ${URL} -O
+rm -rf adw-gtk3*
+tar -xf adw-*.tar.xz -C ${HOME}/.themes/
+rm -f adw-*.tar.xz
 EOF
 
-chmod +x ${HOME}/.local/bin/update-themes
+chmod +x ${HOME}/.local/bin/update-gtk-theme
 
 # Set adw-gtk3 theme
 gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3'
@@ -284,7 +239,7 @@ gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-3 "['<Shift><Su
 gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-4 "['<Shift><Super>dollar']"
 
 ################################################
-##### UI / UX
+##### UI / UX changes
 ################################################
 
 # Volume
