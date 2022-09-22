@@ -13,12 +13,6 @@ mkdir -p \
     ${HOME}/.config/systemd/user \
     ${HOME}/src
 
-# Add bash aliases
-tee ${HOME}/.bashrc.d/aliases << EOF
-alias code="flatpak run com.visualstudio.code"
-alias te="toolbox enter"
-EOF
-
 # Updater bash function
 tee ${HOME}/.bashrc.d/update-all << EOF
 update-all() {
@@ -36,11 +30,27 @@ update-all() {
 
   # Update tailscale
   update-tailscale
+
+  # Update toolbox pckages
+  toolbox run sudo dnf upgrade -y --refresh
 }
 EOF
 
 # Set default firewall zone
 sudo firewall-cmd --set-default-zone=FedoraWorkstation
+
+################################################
+##### Toolbox
+################################################
+
+# References:
+# https://docs.fedoraproject.org/en-US/fedora-silverblue/toolbox/#toolbox-commands
+
+# Create toolbox
+toolbox create
+
+# Update toolbox packages
+toolbox run sudo dnf upgrade -y --refresh
 
 ################################################
 ##### Flathub
@@ -116,6 +126,11 @@ sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decorat
 
 # Install VSCode
 sudo flatpak install -y flathub com.visualstudio.code
+
+# Add bash alias
+tee ${HOME}/.bashrc.d/vscode << EOF
+alias code="flatpak run com.visualstudio.code"
+EOF
 
 # Install extensions
 flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
@@ -307,24 +322,39 @@ tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards 
 tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
 rm -f tailscale_*.tgz
 
+# Create systemd service
+sudo tee /etc/systemd/system/tailscaled.service << EOF
+[Unit]
+Description=Tailscale node agent
+Documentation=https://tailscale.com/kb/
+Wants=network-pre.target
+After=network-pre.target NetworkManager.service systemd-resolved.service
+
+[Service]
+EnvironmentFile=/etc/default/tailscaled
+ExecStartPre=${HOME}/.local/bin/tailscaled --cleanup
+ExecStart=${HOME}/.local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port 41641
+ExecStopPost=${HOME}/.local/bin/tailscaled --cleanup
+
+Restart=on-failure
+
+RuntimeDirectory=tailscale
+RuntimeDirectoryMode=0755
+StateDirectory=tailscale
+StateDirectoryMode=0700
+CacheDirectory=tailscale
+CacheDirectoryMode=0750
+Type=notify
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+
 # Create tailscaled aliases
 tee ${HOME}/.bashrc.d/tailscale << EOF
-alias start-tailscaled='(sudo systemd-run \
-    --service-type=notify \
-    --description="Tailscale node agent" \
-    -u tailscaled.service \
-    -p ExecStartPre="${HOME}/.local/bin/tailscaled --cleanup" \
-    -p ExecStopPost="${HOME}/.local/bin/tailscaled --cleanup" \
-    -p Restart=on-failure \
-    -p RuntimeDirectory=tailscale \
-    -p RuntimeDirectoryMode=0755 \
-    -p StateDirectory=tailscale \
-    -p StateDirectoryMode=0700 \
-    -p CacheDirectory=tailscale \
-    -p CacheDirectoryMode=0750 \
-    "${HOME}/.local/bin/tailscaled" \
-    "--state=/var/lib/tailscale/tailscaled.state" \
-    "--socket=/run/tailscale/tailscaled.sock")'
+alias start-tailscaled="sudo systemctl start tailscaled.service"
 
 alias stop-tailscaled="sudo systemctl stop tailscaled.service"
 EOF
