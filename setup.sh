@@ -43,6 +43,19 @@ EOF
 # Set default firewall zone
 sudo firewall-cmd --set-default-zone=block
 
+# Overlay firewalld GUI
+sudo rpm-ostree install -y firewall-config
+
+################################################
+##### SELinux
+################################################
+
+# Create aliases
+tee ${HOME}/.bashrc.d/selinux << EOF
+alias sedenials="sudo ausearch -m AVC,USER_AVC -ts recent"
+alias selogs="sudo journalctl -t setroubleshoot"
+EOF
+
 ################################################
 ##### Toolbox
 ################################################
