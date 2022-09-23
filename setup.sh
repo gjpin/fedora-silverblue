@@ -359,13 +359,13 @@ rm -f *shell-extension.zip
 # Install Tailscale
 TAILSCALE_LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
 curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
-sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscale
-sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscaled
+sudo tar -xf tailscale_*.tgz --strip-components 1 -C /opt/ --wildcards tailscale_*/tailscale
+sudo tar -xf tailscale_*.tgz --strip-components 1 -C /opt/ --wildcards tailscale_*/tailscaled
 rm -f tailscale_*.tgz
 
 # Fix SELinux labels
-sudo chcon -t bin_t /var/opt/tailscale
-sudo chcon -t bin_t /var/opt/tailscaled
+sudo chcon -t bin_t /opt/tailscale
+sudo chcon -t bin_t /opt/tailscaled
 
 # Create systemd service
 sudo tee /etc/systemd/system/tailscaled.service << EOF
@@ -376,9 +376,9 @@ Wants=network-pre.target
 After=network-pre.target NetworkManager.service systemd-resolved.service
 
 [Service]
-ExecStartPre=/var/opt/tailscaled --cleanup
-ExecStart=/var/opt/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port 41641
-ExecStopPost=/var/opt/tailscaled --cleanup
+ExecStartPre=/opt/tailscaled --cleanup
+ExecStart=/opt/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port 41641
+ExecStopPost=/opt/tailscaled --cleanup
 
 Restart=on-failure
 
@@ -413,11 +413,11 @@ TAILSCALE_INSTALLED_VERSION=$(tailscale --version | head -n 1)
 if [ "$TAILSCALE_LATEST_VERSION" != "$TAILSCALE_INSTALLED_VERSION" ]; then
     rm -f ${HOME}/.local/bin/{tailscale,tailscaled}
     curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
-    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscale
-    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscaled
+    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /opt/ --wildcards tailscale_*/tailscale
+    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /opt/ --wildcards tailscale_*/tailscaled
     rm -f tailscale_*.tgz
-    sudo chcon -t bin_t /var/opt/tailscale
-    sudo chcon -t bin_t /var/opt/tailscaled
+    sudo chcon -t bin_t /opt/tailscale
+    sudo chcon -t bin_t /opt/tailscaled
 fi
 EOF
 
