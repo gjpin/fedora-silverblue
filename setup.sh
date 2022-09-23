@@ -439,7 +439,7 @@ ExecStart=/usr/bin/podman run \
     -p 22000:22000/tcp \
     -p 22000:22000/udp \
     -p 21027:21027/udp \
-    -v ${HOME}/containers/syncthing:/var/syncthing:Z,U \
+    -v ${HOME}/containers/syncthing:/var/syncthing:Z \
     docker.io/syncthing/syncthing:latest
 ExecStop=/usr/bin/podman stop syncthing
 ExecStopPost=/usr/bin/podman rm syncthing
@@ -448,10 +448,6 @@ Restart=always
 [Install]
 WantedBy=default.target
 EOF
-
-# Automatically adjust the ownership of the directory
-# https://www.redhat.com/sysadmin/debug-rootless-podman-mounted-volumes
-podman unshare chown 1000:1000 ${HOME}/containers/syncthing
 
 # Enable systemd user service
 systemctl --user daemon-reload
