@@ -33,6 +33,9 @@ update-all() {
 
   # Update toolbox pckages
   toolbox run sudo dnf upgrade -y --refresh
+
+  # Update global npm packages
+  toolbox run npm update -g
 }
 EOF
 
@@ -68,6 +71,31 @@ toolbox create -y
 
 # Update toolbox packages
 toolbox run sudo dnf upgrade -y --refresh
+
+# Install ansible
+toolbox run sudo dnf install -y ansible
+
+# Install go
+toolbox run sudo dnf install -y golang
+
+tee ${HOME}/.bashrc.d/golang << 'EOF'
+# paths
+export GOPATH="$HOME/.go"
+export PATH="$GOPATH/bin:$PATH"
+EOF
+
+# Install nodejs
+toolbox run sudo dnf install -y nodejs npm
+
+mkdir -p ${HOME}/.npm-global
+
+toolbox run npm config set prefix '~/.npm-global'
+
+tee ${HOME}/.bashrc.d/nodejs << 'EOF'
+export PATH="$HOME/.npm-global/bin:$PATH"
+EOF
+
+toolbox run npm install -g typescript typescript-language-server pyright
 
 ################################################
 ##### Flathub
@@ -316,16 +344,22 @@ if cat /sys/class/dmi/id/chassis_type | grep 10 > /dev/null; then
   gsettings set org.gnome.desktop.peripherals.touchpad disable-while-typing false
 fi
 
-# Configure bash prompt and terminal
+# Configure bash prompt
 tee ${HOME}/.bashrc.d/prompt << EOF
-PS1="\[\e[1;36m\]\w\[\e[m\] \[\e[1;33m\]\\$\[\e[m\] "
 PROMPT_COMMAND="export PROMPT_COMMAND=echo"
 EOF
 
+# Configure terminal color scheme
 dconf write /org/gnome/terminal/legacy/theme-variant "'dark'"
 GNOME_TERMINAL_PROFILE=`gsettings get org.gnome.Terminal.ProfilesList default | awk -F \' '{print $2}'`
 gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$GNOME_TERMINAL_PROFILE/ default-size-columns 110
 gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$GNOME_TERMINAL_PROFILE/ palette "['rgb(46,52,54)', 'rgb(204,0,0)', 'rgb(34,209,139)', 'rgb(196,160,0)', 'rgb(51,142,250)', 'rgb(117,80,123)', 'rgb(6,152,154)', 'rgb(211,215,207)', 'rgb(85,87,83)', 'rgb(239,41,41)', 'rgb(138,226,52)', 'rgb(252,233,79)', 'rgb(114,159,207)', 'rgb(173,127,168)', 'rgb(52,226,226)', 'rgb(238,238,236)']"
+
+# Set fonts
+gsettings set org.gnome.desktop.interface font-name 'Noto Sans 10'
+gsettings set org.gnome.desktop.interface document-font-name 'Noto Sans 10'
+gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Noto Sans Bold 10'
+gsettings set org.gnome.desktop.interface monospace-font-name 'Noto Sans Mono 10'
 
 ################################################
 ##### Gnome Shell Extensions
