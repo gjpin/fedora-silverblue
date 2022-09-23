@@ -36,8 +36,12 @@ update-all() {
 }
 EOF
 
+################################################
+##### Firewalld
+################################################
+
 # Set default firewall zone
-sudo firewall-cmd --set-default-zone=FedoraWorkstation
+sudo firewall-cmd --set-default-zone=block
 
 ################################################
 ##### Toolbox
