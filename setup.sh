@@ -51,7 +51,7 @@ sudo firewall-cmd --set-default-zone=block
 # https://docs.fedoraproject.org/en-US/fedora-silverblue/toolbox/#toolbox-commands
 
 # Create toolbox
-toolbox create
+toolbox create -y
 
 # Update toolbox packages
 toolbox run sudo dnf upgrade -y --refresh
@@ -80,6 +80,9 @@ sudo flatpak install -y flathub org.freedesktop.Platform.GStreamer.gstreamer-vaa
 # Set Firefox Flatpak as default browser
 xdg-settings set default-web-browser org.mozilla.firefox.desktop
 
+# Temporarily open Firefox to create profiles
+timeout 5 flatpak run org.mozilla.firefox --headless
+
 # Install Firefox Gnome theme
 git clone https://github.com/rafaelmardojai/firefox-gnome-theme
 cd firefox-gnome-theme
@@ -98,8 +101,11 @@ EOF
 
 chmod +x ${HOME}/.local/bin/update-firefox-theme
 
+# Enable wayland
+sudo flatpak override --socket=wayland --env=MOZ_ENABLE_WAYLAND=1 org.mozilla.firefox
+
 # Install Intel VA-API drivers if applicable
-if cat /proc/cpuinfo | grep vendor | grep "GenuineIntel" > /dev/null; then
+if lspci | grep VGA | grep "Intel" > /dev/null; then
   sudo flatpak install -y flathub org.freedesktop.Platform.VAAPI.Intel/x86_64/21.08
 fi
 
@@ -107,6 +113,7 @@ fi
 ##### Applications
 ################################################
 
+# Install common applications
 sudo flatpak install -y flathub org.gnome.World.Secrets
 sudo flatpak install -y flathub com.belmoussaoui.Authenticator
 sudo flatpak install -y flathub org.keepassxc.KeePassXC
@@ -117,13 +124,21 @@ sudo flatpak install -y flathub net.cozic.joplin_desktop
 sudo flatpak install -y flathub rest.insomnia.Insomnia
 sudo flatpak install -y flathub org.gimp.GIMP
 sudo flatpak install -y flathub org.blender.Blender
-sudo flatpak install -y flathub org.gnome.Extensions
 sudo flatpak install -y flathub org.gnome.Builder
 sudo flatpak install -y flathub com.usebottles.bottles && \
     sudo flatpak override com.usebottles.bottles --filesystem=xdg-data/applications
-sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform
-sudo flatpak install -y flathub org.kde.PlatformTheme.QtSNI
-sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration
+
+# Improve QT applications theming in GTK
+sudo flatpak install -y flathub org.kde.KStyle.Adwaita/x86_64/5.15-21.08
+sudo flatpak install -y flathub org.kde.KStyle.Adwaita/x86_64/5.15-22.08
+
+sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform/x86_64/5.15-21.08
+sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform/x86_64/5.15-22.08
+
+sudo flatpak install -y flathub org.kde.PlatformTheme.QtSNI/x86_64/5.15-21.08
+
+sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration/x86_64/5.15-21.08
+sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration/x86_64/5.15-22.08
 
 ################################################
 ##### Visual Studio Code
@@ -224,7 +239,6 @@ gsettings set org.gnome.desktop.interface color-scheme 'default'
 
 # Terminal
 gsettings set org.gnome.Terminal.Legacy.Keybindings:/org/gnome/terminal/legacy/keybindings/ next-tab '<Primary>Tab'
-gsettings set org.gnome.Terminal.Legacy.Keybindings:/org/gnome/terminal/legacy/keybindings/ close-tab '<Primary><Shift>w'
 
 # Windows management
 gsettings set org.gnome.desktop.wm.keybindings close "['<Shift><Super>q']"
@@ -301,7 +315,6 @@ curl -sSL https://extensions.gnome.org/extension-data/dark-varianthardpixel.eu.v
 EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -d \" -f4)
 mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
-gnome-extensions enable ${EXTENSION_UUID}
 rm -f *shell-extension.zip
 
 # AppIndicator and KStatusNotifierItem Support
@@ -310,7 +323,6 @@ curl -sSL https://extensions.gnome.org/extension-data/appindicatorsupportrgcjona
 EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -d \" -f4)
 mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
-gnome-extensions enable ${EXTENSION_UUID}
 rm -f *shell-extension.zip
 
 ################################################
@@ -323,9 +335,13 @@ rm -f *shell-extension.zip
 # Install Tailscale
 TAILSCALE_LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
 curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
-tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
-tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
+sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscale
+sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscaled
 rm -f tailscale_*.tgz
+
+# Fix SELinux labels
+sudo chcon -t bin_t /var/opt/tailscale
+sudo chcon -t bin_t /var/opt/tailscaled
 
 # Create systemd service
 sudo tee /etc/systemd/system/tailscaled.service << EOF
@@ -336,10 +352,9 @@ Wants=network-pre.target
 After=network-pre.target NetworkManager.service systemd-resolved.service
 
 [Service]
-EnvironmentFile=/etc/default/tailscaled
-ExecStartPre=${HOME}/.local/bin/tailscaled --cleanup
-ExecStart=${HOME}/.local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port 41641
-ExecStopPost=${HOME}/.local/bin/tailscaled --cleanup
+ExecStartPre=/var/opt/tailscaled --cleanup
+ExecStart=/var/opt/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port 41641
+ExecStopPost=/var/opt/tailscaled --cleanup
 
 Restart=on-failure
 
@@ -374,9 +389,11 @@ TAILSCALE_INSTALLED_VERSION=$(tailscale --version | head -n 1)
 if [ "$TAILSCALE_LATEST_VERSION" != "$TAILSCALE_INSTALLED_VERSION" ]; then
     rm -f ${HOME}/.local/bin/{tailscale,tailscaled}
     curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
-    tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscale
-    tar -xf tailscale_*.tgz --strip-components 1 -C ${HOME}/.local/bin/ --wildcards tailscale_*/tailscaled
+    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscale
+    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /var/opt/ --wildcards tailscale_*/tailscaled
     rm -f tailscale_*.tgz
+    sudo chcon -t bin_t /var/opt/tailscale
+    sudo chcon -t bin_t /var/opt/tailscaled
 fi
 EOF
 
@@ -403,9 +420,11 @@ After=firewalld.service
 ExecStartPre=-/usr/bin/podman kill syncthing
 ExecStartPre=-/usr/bin/podman rm syncthing
 ExecStartPre=/usr/bin/podman pull docker.io/syncthing/syncthing:latest
-ExecStart=/usr/bin/podman run -a \
+ExecStart=/usr/bin/podman run \
     --name=syncthing \
-    --hostname=syncthing \
+    --hostname=${HOSTNAME} \
+    -e PUID=1000 \
+    -e PGID=1000 \
     -p 8384:8384/tcp \
     -p 22000:22000/tcp \
     -p 22000:22000/udp \
@@ -414,10 +433,10 @@ ExecStart=/usr/bin/podman run -a \
     docker.io/syncthing/syncthing:latest
 ExecStop=/usr/bin/podman stop syncthing
 ExecStopPost=/usr/bin/podman rm syncthing
-Restart=on-failure
+Restart=always
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
 
 # Enable systemd user service
@@ -425,7 +444,7 @@ systemctl --user daemon-reload
 systemctl --user enable syncthing.service
 
 # Open firewall ports
-sudo firewall-cmd --permanent --zone=FedoraWorkstation --add-port=21027/udp # For discovery broadcasts on IPv4 and multicasts on IPv6
-sudo firewall-cmd --permanent --zone=FedoraWorkstation --add-port=22000/tcp # TCP based sync protocol traffic
-sudo firewall-cmd --permanent --zone=FedoraWorkstation --add-port=22000/udp # QUIC based sync protocol traffic
+sudo firewall-cmd --permanent --zone=home --add-port=21027/udp # For discovery broadcasts on IPv4 and multicasts on IPv6
+sudo firewall-cmd --permanent --zone=home --add-port=22000/tcp # TCP based sync protocol traffic
+sudo firewall-cmd --permanent --zone=home --add-port=22000/udp # QUIC based sync protocol traffic
 sudo firewall-cmd --reload
