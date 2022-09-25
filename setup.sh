@@ -17,7 +17,7 @@ mkdir -p \
 tee ${HOME}/.bashrc.d/update-all << EOF
 update-all() {
   # Update system
-  sudo rpm-ostree upgrade -y
+  sudo rpm-ostree upgrade
 
   # Update Flatpak apps
   flatpak update -y
@@ -506,3 +506,19 @@ sudo firewall-cmd --permanent --zone=home --add-port=21027/udp # For discovery b
 sudo firewall-cmd --permanent --zone=home --add-port=22000/tcp # TCP based sync protocol traffic
 sudo firewall-cmd --permanent --zone=home --add-port=22000/udp # QUIC based sync protocol traffic
 sudo firewall-cmd --reload
+
+################################################
+##### Unlock LUKS2 with TPM2 token
+################################################
+
+# Install tpm2-tools
+sudo rpm-ostree install -y --apply-live tpm2-tools
+
+# Update crypttab
+sudo sed -ie '/^luks-/s/$/ tpm2-device=auto/' /etc/crypttab
+
+# Regenerate initramfs
+sudo rpm-ostree initramfs --enable --arg=--force-add --arg=tpm2-tss
+
+# Enroll TPM2 token into LUKS2
+sudo systemd-cryptenroll --tpm2-device=auto --wipe-slot=tpm2 /dev/nvme0n1p3
