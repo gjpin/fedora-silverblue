@@ -39,6 +39,12 @@ update-all() {
 }
 EOF
 
+# Configure systemd user instance
+tee ${HOME}/.config/systemd/user.conf << EOF
+[Manager]
+DefaultTimeoutStopSec=5s
+EOF
+
 ################################################
 ##### Firewalld
 ################################################
@@ -491,8 +497,8 @@ ExecStart=/usr/bin/podman run \
     -p 21027:21027/udp \
     -v ${HOME}/containers/syncthing:/var/syncthing:Z \
     docker.io/syncthing/syncthing:latest
-ExecStop=/usr/bin/podman stop --time 2 syncthing
-ExecStopPost=/usr/bin/podman rm --force syncthing
+ExecStop=/usr/bin/podman stop syncthing
+ExecStopPost=/usr/bin/podman rm syncthing
 Restart=always
 
 [Install]
