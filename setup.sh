@@ -78,6 +78,9 @@ toolbox create -y
 # Update toolbox packages
 toolbox run sudo dnf upgrade -y --refresh
 
+# Install bind-utils (dig, etc)
+toolbox run sudo dnf install -y bind-utils
+
 # Install ansible
 toolbox run sudo dnf install -y ansible
 
