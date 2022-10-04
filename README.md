@@ -1,10 +1,10 @@
 # Login to tailscale
-```
-sudo tailscale up --operator=${USER}
+```bash
+sudo tailscale up --login-server https://SERVER --authkey AUTHKEY
 ```
 
 # Flatpak - Revert to commit
-```
+```bash
 # Install app
 sudo flatpak install -y flathub org.godotengine.Godot
 
@@ -19,7 +19,7 @@ flatpak mask org.godotengine.Godot
 ```
 
 ## Gaming
-```
+```bash
 ###### STEAM
 mkdir -p /mnt/data/games/steam
 sudo flatpak install -y flathub com.valvesoftware.Steam
@@ -48,7 +48,7 @@ sudo flatpak override --filesystem=/mnt/data/games/heroic com.heroicgameslaunche
 ```
 
 ## Gamescope + MangoHud + Steam
-```
+```bash
 # MangoHud
 mangohud %command%
 
@@ -63,7 +63,7 @@ gamescope -h 1080 -H 1440 -U -f -e -- mangohud %command%
 ```
 
 ## Disable turbo boost if on battery (laptops only)
-```
+```bash
 # References:
 # https://chrisdown.name/2017/10/29/adding-power-related-targets-to-systemd.html
 
@@ -135,7 +135,7 @@ fi
 ```
 
 ## Enable amd-pstate CPU Performance Scaling Driver
-```
+```bash
 # Check if CPU is AMD and current scaling driver is not amd-pstate
 if cat /proc/cpuinfo | grep "AuthenticAMD" > /dev/null && cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver | grep -v "amd-pstate" > /dev/null; then
   sudo rpm-ostree kargs --append=amd_pstate.shared_mem=1
