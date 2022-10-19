@@ -36,9 +36,6 @@ update-all() {
 
   # Update toolbox pckages
   toolbox run sudo dnf upgrade -y --refresh
-
-  # Update global npm packages
-  toolbox run npm update -g
 }
 EOF
 
@@ -84,9 +81,6 @@ toolbox run sudo dnf upgrade -y --refresh
 # Install bind-utils (dig, etc)
 toolbox run sudo dnf install -y bind-utils
 
-# Install ansible
-toolbox run sudo dnf install -y ansible
-
 # Install go
 toolbox run sudo dnf install -y golang
 
@@ -107,7 +101,11 @@ tee ${HOME}/.bashrc.d/nodejs << 'EOF'
 export PATH="$HOME/.npm-global/bin:$PATH"
 EOF
 
-toolbox run npm install -g typescript typescript-language-server pyright
+# Install language servers
+toolbox run sudo dnf install -y python-lsp-server \
+  typescript \
+  nodejs-bash-language-server \
+  golang-x-tools-gopls
 
 ################################################
 ##### Flathub
@@ -150,7 +148,7 @@ tee ${HOME}/.local/bin/update-firefox-theme << 'EOF'
 # Update Firefox theme
 git clone https://github.com/rafaelmardojai/firefox-gnome-theme
 cd firefox-gnome-theme
-./scripts/install.sh -f ~/.var/app/org.mozilla.firefox/.mozilla/firefox
+./scripts/install.sh -f ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox
 cd .. && rm -rf firefox-gnome-theme/
 EOF
 
@@ -313,7 +311,7 @@ update-firefox-configs
 ################################################
 
 # Install common applications
-sudo flatpak install -y flathub org.gnome.World.Secrets
+sudo flatpak install -y flathub com.bitwarden.desktop
 sudo flatpak install -y flathub com.belmoussaoui.Authenticator
 sudo flatpak install -y flathub org.keepassxc.KeePassXC
 sudo flatpak install -y flathub com.spotify.Client
@@ -356,8 +354,6 @@ EOF
 # Install extensions
 flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
 flatpak run com.visualstudio.code --install-extension golang.Go
-flatpak run com.visualstudio.code --install-extension HashiCorp.terraform
-flatpak run com.visualstudio.code --install-extension redhat.ansible
 flatpak run com.visualstudio.code --install-extension dbaeumer.vscode-eslint
 
 # Configure VSCode
@@ -376,7 +372,6 @@ tee ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
     "workbench.preferredDarkColorTheme": "Adwaita Dark",
     "workbench.preferredLightColorTheme": "Adwaita Light",
     "editor.fontWeight": "500",
-    "redhat.telemetry.enabled": false,
     "files.associations": {
       "*.j2": "terraform",
       "*.hcl": "terraform",
@@ -537,7 +532,7 @@ rm -f *shell-extension.zip
 
 # AppIndicator and KStatusNotifierItem Support
 # https://extensions.gnome.org/extension/615/appindicator-support/
-curl -sSL https://extensions.gnome.org/extension-data/appindicatorsupportrgcjonas.gmail.com.v42.shell-extension.zip -O
+curl -sSL https://extensions.gnome.org/extension-data/appindicatorsupportrgcjonas.gmail.com.v46.shell-extension.zip -O
 EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -d \" -f4)
 mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
@@ -590,13 +585,6 @@ EOF
 
 sudo systemctl daemon-reload
 
-# Create tailscaled aliases
-tee ${HOME}/.bashrc.d/tailscale << EOF
-alias start-tailscaled="sudo systemctl start tailscaled.service"
-
-alias stop-tailscaled="sudo systemctl stop tailscaled.service"
-EOF
-
 # Tailscale updater
 tee ${HOME}/.local/bin/update-tailscale << 'EOF'
 #!/usr/bin/env bash
@@ -616,55 +604,6 @@ fi
 EOF
 
 chmod +x ${HOME}/.local/bin/update-tailscale
-
-################################################
-##### Syncthing
-################################################
-
-# References:
-# https://github.com/syncthing/syncthing/blob/main/README-Docker.md
-# https://docs.syncthing.net/users/firewall.html
-
-# Create volume folder
-mkdir -p ${HOME}/containers/syncthing
-
-# Create systemd user service
-tee ${HOME}/.config/systemd/user/syncthing.service << EOF
-[Unit]
-Description=syncthing container
-After=firewalld.service
-
-[Service]
-ExecStartPre=-/usr/bin/podman kill syncthing
-ExecStartPre=-/usr/bin/podman rm syncthing
-ExecStartPre=/usr/bin/podman pull docker.io/syncthing/syncthing:latest
-ExecStart=/usr/bin/podman run \
-    --name=syncthing \
-    --hostname=${HOSTNAME} \
-    --userns=keep-id \
-    -p 8384:8384/tcp \
-    -p 22000:22000/tcp \
-    -p 22000:22000/udp \
-    -p 21027:21027/udp \
-    -v ${HOME}/containers/syncthing:/var/syncthing:Z \
-    docker.io/syncthing/syncthing:latest
-ExecStop=/usr/bin/podman stop syncthing
-ExecStopPost=/usr/bin/podman rm syncthing
-Restart=always
-
-[Install]
-WantedBy=default.target
-EOF
-
-# Enable systemd user service
-systemctl --user daemon-reload
-systemctl --user enable syncthing.service
-
-# Open firewall ports
-sudo firewall-cmd --permanent --zone=home --add-port=21027/udp # For discovery broadcasts on IPv4 and multicasts on IPv6
-sudo firewall-cmd --permanent --zone=home --add-port=22000/tcp # TCP based sync protocol traffic
-sudo firewall-cmd --permanent --zone=home --add-port=22000/udp # QUIC based sync protocol traffic
-sudo firewall-cmd --reload
 
 ################################################
 ##### Unlock LUKS2 with TPM2 token
