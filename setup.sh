@@ -1,4 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
+################################################
+##### Set variables
+################################################
+
+read -p "Gaming (yes / no): " GAMING
+export GAMING
 
 ################################################
 ##### General
@@ -8,9 +15,8 @@
 mkdir -p \
     ${HOME}/.bashrc.d \
     ${HOME}/.local/bin \
-    ${HOME}/.themes \
+    ${HOME}/.local/share/themes/ \
     ${HOME}/.local/share/gnome-shell/extensions \
-    ${HOME}/.config/systemd/user \
     ${HOME}/src
 
 # Updater bash function
@@ -25,25 +31,19 @@ update-all() {
   # Update Firefox theme
   update-firefox-theme
 
-  # Update Firefox configs
-  update-firefox-configs
-
   # Update GTK theme
   update-gtk-theme
-
-  # Update tailscale
-  update-tailscale
 
   # Update toolbox pckages
   toolbox run sudo dnf upgrade -y --refresh
 }
 EOF
 
-# Configure systemd user instance
-tee ${HOME}/.config/systemd/user.conf << EOF
-[Manager]
-DefaultTimeoutStopSec=5s
-EOF
+################################################
+##### WireGuard
+################################################
+
+sudo rpm-ostree install -y wireguard-tools
 
 ################################################
 ##### Firewalld
@@ -93,19 +93,13 @@ EOF
 # Install nodejs
 toolbox run sudo dnf install -y nodejs npm
 
-mkdir -p ${HOME}/.npm-global
-
-toolbox run npm config set prefix '~/.npm-global'
-
-tee ${HOME}/.bashrc.d/nodejs << 'EOF'
-export PATH="$HOME/.npm-global/bin:$PATH"
-EOF
-
 # Install language servers
-toolbox run sudo dnf install -y python-lsp-server \
+toolbox run sudo dnf install -y \
+  python-lsp-server \
   typescript \
   nodejs-bash-language-server \
-  golang-x-tools-gopls
+  golang-x-tools-gopls \
+  clang-tools-extra
 
 ################################################
 ##### Flathub
@@ -114,20 +108,27 @@ toolbox run sudo dnf install -y python-lsp-server \
 # Add Flathub repo
 sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 sudo flatpak remote-modify flathub --enable
-sudo flatpak update --appstream
 
 ################################################
 ##### Firefox
 ################################################
+
+# References:
+# https://github.com/pyllyukko/user.js/blob/master/user.js
+# https://github.com/rafaelmardojai/firefox-gnome-theme/blob/master/configuration/user.js
 
 # Remove Firefox RPM
 sudo rpm-ostree override remove firefox
 
 # Install Firefox from Flathub
 sudo flatpak install -y flathub org.mozilla.firefox
-sudo flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/21.08
-sudo flatpak install -y flathub org.freedesktop.Platform.GStreamer.gstreamer-vaapi/x86_64/21.08
+sudo flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/22.08
 sudo flatpak install -y flathub org.freedesktop.Platform.GStreamer.gstreamer-vaapi/x86_64/22.08
+
+# Install Intel VA-API drivers if applicable
+if lspci | grep VGA | grep "Intel" > /dev/null; then
+  sudo flatpak install -y flathub org.freedesktop.Platform.VAAPI.Intel/x86_64/22.08
+fi
 
 # Set Firefox Flatpak as default browser
 xdg-settings set default-web-browser org.mozilla.firefox.desktop
@@ -136,20 +137,29 @@ xdg-settings set default-web-browser org.mozilla.firefox.desktop
 timeout 5 flatpak run org.mozilla.firefox --headless
 
 # Install Firefox Gnome theme
-git clone https://github.com/rafaelmardojai/firefox-gnome-theme
-cd firefox-gnome-theme
-./scripts/install.sh -f ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox
-cd .. && rm -rf firefox-gnome-theme/
+FIREFOX_PROFILE_PATH=$(realpath ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox/*.default-release)
+mkdir -p ${FIREFOX_PROFILE_PATH}/chrome
+git clone https://github.com/rafaelmardojai/firefox-gnome-theme.git ${FIREFOX_PROFILE_PATH}/chrome/firefox-gnome-theme
+echo "@import \"firefox-gnome-theme/userChrome.css\"" > ${FIREFOX_PROFILE_PATH}/chrome/userChrome.css
+echo "@import \"firefox-gnome-theme/userContent.css\"" > ${FIREFOX_PROFILE_PATH}/chrome/userContent.css
+tee -a ${FIREFOX_PROFILE_PATH}/user.js << EOF
+// Enable customChrome.css
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+
+// Set UI density to normal
+user_pref("browser.uidensity", 0);
+
+// Enable SVG context-propertes
+user_pref("svg.context-properties.content.enabled", true);
+EOF
 
 # Firefox theme updater
 tee ${HOME}/.local/bin/update-firefox-theme << 'EOF'
 #!/usr/bin/env bash
 
 # Update Firefox theme
-git clone https://github.com/rafaelmardojai/firefox-gnome-theme
-cd firefox-gnome-theme
-./scripts/install.sh -f ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox
-cd .. && rm -rf firefox-gnome-theme/
+FIREFOX_PROFILE_PATH=$(realpath ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox/*.default-release)
+git clone https://github.com/rafaelmardojai/firefox-gnome-theme.git ${FIREFOX_PROFILE_PATH}/chrome/firefox-gnome-theme
 EOF
 
 chmod +x ${HOME}/.local/bin/update-firefox-theme
@@ -157,30 +167,60 @@ chmod +x ${HOME}/.local/bin/update-firefox-theme
 # Enable wayland
 sudo flatpak override --socket=wayland --env=MOZ_ENABLE_WAYLAND=1 org.mozilla.firefox
 
-# Install Intel VA-API drivers if applicable
-if lspci | grep VGA | grep "Intel" > /dev/null; then
-  sudo flatpak install -y flathub org.freedesktop.Platform.VAAPI.Intel/x86_64/21.08
-fi
-
 # Import Firefox configs
-# Reference: https://github.com/pyllyukko/user.js/blob/master/user.js
-# https://github.com/rafaelmardojai/firefox-gnome-theme/blob/master/configuration/user.js
-tee ${HOME}/.local/bin/update-firefox-configs << 'EOF'
-#!/usr/bin/env bash
-
-tee ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox/*.default*/user.js << EOD
-
-// Enable customChrome.css (required by Firefox Gnome theme)
-user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
-
-// Set UI density to normal (required by Firefox Gnome theme)
-user_pref("browser.uidensity", 0);
-
-// Enable SVG context-propertes (required by Firefox Gnome theme)
-user_pref("svg.context-properties.content.enabled", true);
+tee -a ${FIREFOX_PROFILE_PATH}/user.js << EOF
 
 // Enable FFMPEG VA-API
 user_pref("media.ffmpeg.vaapi.enabled", true);
+
+// Disable title bar
+user_pref("browser.tabs.inTitlebar", 1);
+
+// Disable View feature
+user_pref("browser.tabs.firefox-view", false);
+
+// Disable List All Tabs button
+user_pref("browser.tabs.tabmanager.enabled", false);
+
+// Disable password manager
+user_pref("signon.rememberSignons", false);
+
+// Disable default browser check
+user_pref("browser.shell.checkDefaultBrowser", false);
+
+// Enable scrolling with middle mouse button
+user_pref("general.autoScroll", true);
+
+// Enable Firefox Tracking Protection
+user_pref("browser.contentblocking.category", "strict");
+user_pref("privacy.trackingprotection.enabled", true);
+user_pref("privacy.trackingprotection.pbmode.enabled", true);
+user_pref("privacy.trackingprotection.fingerprinting.enabled", true);
+user_pref("privacy.trackingprotection.cryptomining.enabled", true);
+user_pref("privacy.trackingprotection.socialtracking.enabled", true);
+user_pref("network.cookie.cookieBehavior", 5);
+
+// Disable Mozilla telemetry/experiments
+user_pref("toolkit.telemetry.enabled",				false);
+user_pref("toolkit.telemetry.unified",				false);
+user_pref("toolkit.telemetry.archive.enabled",			false);
+user_pref("experiments.supported",				false);
+user_pref("experiments.enabled",				false);
+user_pref("experiments.manifest.uri",				"");
+
+// Disallow Necko to do A/B testing
+user_pref("network.allow-experiments",				false);
+
+// Disable collection/sending of the health report
+user_pref("datareporting.healthreport.uploadEnabled",		false);
+user_pref("datareporting.healthreport.service.enabled",		false);
+user_pref("datareporting.policy.dataSubmissionEnabled",		false);
+user_pref("browser.discovery.enabled",				false);
+
+// Disable Pocket
+user_pref("browser.pocket.enabled",				false);
+user_pref("extensions.pocket.enabled",				false);
+user_pref("browser.newtabpage.activity-stream.feeds.section.topstories",	false);
 
 // Disable Location-Aware Browsing (geolocation)
 user_pref("geo.enabled",					false);
@@ -225,17 +265,6 @@ user_pref("services.blocklist.update_enabled",			true);
 // Disable Extension recommendations
 user_pref("browser.newtabpage.activity-stream.asrouter.userprefs.cfr",	false);
 
-// Disable Mozilla telemetry/experiments
-user_pref("toolkit.telemetry.enabled",				false);
-user_pref("toolkit.telemetry.unified",				false);
-user_pref("toolkit.telemetry.archive.enabled",			false);
-user_pref("experiments.supported",				false);
-user_pref("experiments.enabled",				false);
-user_pref("experiments.manifest.uri",				"");
-
-// Disallow Necko to do A/B testing
-user_pref("network.allow-experiments",				false);
-
 // Disable sending Firefox crash reports to Mozilla servers
 user_pref("breakpad.reportURL",					"");
 
@@ -243,18 +272,8 @@ user_pref("breakpad.reportURL",					"");
 user_pref("browser.tabs.crashReporting.sendReport",		false);
 user_pref("browser.crashReports.unsubmittedCheck.enabled",	false);
 
-// Enable Firefox Tracking Protection
-user_pref("privacy.trackingprotection.enabled",			true);
-user_pref("privacy.trackingprotection.pbmode.enabled",		true);
-
 // Enable Firefox's anti-fingerprinting mode
 user_pref("privacy.resistFingerprinting",			true);
-
-// Disable collection/sending of the health report
-user_pref("datareporting.healthreport.uploadEnabled",		false);
-user_pref("datareporting.healthreport.service.enabled",		false);
-user_pref("datareporting.policy.dataSubmissionEnabled",		false);
-user_pref("browser.discovery.enabled",				false);
 
 // Disable Shield/Heartbeat/Normandy
 user_pref("app.normandy.enabled", false);
@@ -270,11 +289,6 @@ user_pref("browser.safebrowsing.phishing.enabled",		true);
 
 // Enable blocking reported attack sites
 user_pref("browser.safebrowsing.malware.enabled",		true);
-
-// Disable Pocket
-user_pref("browser.pocket.enabled",				false);
-user_pref("extensions.pocket.enabled",				false);
-user_pref("browser.newtabpage.activity-stream.feeds.section.topstories",	false);
 
 // Disable downloading homepage snippets/messages from Mozilla
 user_pref("browser.aboutHomeSnippets.updateUrl",		"");
@@ -299,12 +313,7 @@ user_pref("dom.security.https_only_mode",			true);
 
 // Enable HSTS preload list
 user_pref("network.stricttransportsecurity.preloadlist",	true);
-EOD
 EOF
-
-chmod +x ${HOME}/.local/bin/update-firefox-configs
-
-update-firefox-configs
 
 ################################################
 ##### Applications
@@ -314,29 +323,29 @@ update-firefox-configs
 sudo flatpak install -y flathub com.bitwarden.desktop
 sudo flatpak install -y flathub com.belmoussaoui.Authenticator
 sudo flatpak install -y flathub org.keepassxc.KeePassXC
-sudo flatpak install -y flathub com.spotify.Client
 sudo flatpak install -y flathub com.github.tchx84.Flatseal
-sudo flatpak install -y flathub org.gaphor.Gaphor
-sudo flatpak install -y flathub net.cozic.joplin_desktop
+
 sudo flatpak install -y flathub rest.insomnia.Insomnia
-sudo flatpak install -y flathub org.gimp.GIMP
-sudo flatpak install -y flathub org.blender.Blender
-sudo flatpak install -y flathub org.gnome.Builder
+
+sudo flatpak install -y flathub com.spotify.Client
 sudo flatpak install -y flathub io.github.celluloid_player.Celluloid
 sudo flatpak install -y flathub io.github.seadve.Kooha
+
+sudo flatpak install -y flathub org.gaphor.Gaphor
+sudo flatpak install -y flathub md.obsidian.Obsidian
+sudo flatpak install -y flathub com.nextcloud.desktopclient.nextcloud
+
+sudo flatpak install -y flathub org.gimp.GIMP
+sudo flatpak install -y flathub org.blender.Blender
+sudo flatpak install -y flathub org.godotengine.Godot
+
 sudo flatpak install -y flathub com.usebottles.bottles && \
     sudo flatpak override com.usebottles.bottles --filesystem=xdg-data/applications
 
 # Improve QT applications theming in GTK
-sudo flatpak install -y flathub org.kde.KStyle.Adwaita/x86_64/5.15-21.08
 sudo flatpak install -y flathub org.kde.KStyle.Adwaita/x86_64/5.15-22.08
-
-sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform/x86_64/5.15-21.08
 sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform/x86_64/5.15-22.08
-
 sudo flatpak install -y flathub org.kde.PlatformTheme.QtSNI/x86_64/5.15-21.08
-
-sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration/x86_64/5.15-21.08
 sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration/x86_64/5.15-22.08
 
 ################################################
@@ -356,6 +365,8 @@ flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
 flatpak run com.visualstudio.code --install-extension golang.Go
 flatpak run com.visualstudio.code --install-extension dbaeumer.vscode-eslint
 flatpak run com.visualstudio.code --install-extension vue.volar
+flatpak run com.visualstudio.code --install-extension llvm-vs-code-extensions.vscode-clangd
+flatpak run com.visualstudio.code --install-extension geequlim.godot-tools
 
 # Configure VSCode
 mkdir -p ${HOME}/.var/app/com.visualstudio.code/config/Code/User
@@ -405,12 +416,13 @@ EOF
 ################################################
 
 # Install adw-gtk3 flatpak
-sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3 org.gtk.Gtk3theme.adw-gtk3-dark
+sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3
+sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3-dark
 
 # Download and install latest adw-gtk3 release
 URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
 curl -sSL ${URL} -O
-tar -xf adw-*.tar.xz -C ${HOME}/.themes/
+tar -xf adw-*.tar.xz -C ${HOME}/.local/share/themes/
 rm -f adw-*.tar.xz
 
 # GTK theme updater
@@ -419,8 +431,8 @@ tee ${HOME}/.local/bin/update-gtk-theme << 'EOF'
 
 URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
 curl -sSL ${URL} -O
-rm -rf ${HOME}/.themes/adw-gtk3*
-tar -xf adw-*.tar.xz -C ${HOME}/.themes/
+rm -rf ${HOME}/.local/share/themes/adw-gtk3*
+tar -xf adw-*.tar.xz -C ${HOME}/.local/share/themes/
 rm -f adw-*.tar.xz
 EOF
 
@@ -491,7 +503,7 @@ gsettings set org.gnome.desktop.calendar show-weekdate true
 
 # Nautilus
 gsettings set org.gtk.Settings.FileChooser sort-directories-first true
-gsettings set org.gnome.nautilus.icon-view default-zoom-level 'standard'
+gsettings set org.gnome.nautilus.icon-view default-zoom-level 'small'
 
 # Laptop specific
 if cat /sys/class/dmi/id/chassis_type | grep 10 > /dev/null; then
@@ -540,78 +552,11 @@ unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${E
 rm -f *shell-extension.zip
 
 ################################################
-##### Tailscale
-################################################
-
-# References:
-# https://tailscale.com/blog/steam-deck/
-
-# Install Tailscale
-TAILSCALE_LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
-curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
-sudo tar -xf tailscale_*.tgz --strip-components 1 -C /usr/local/bin/ --wildcards tailscale_*/tailscale
-sudo tar -xf tailscale_*.tgz --strip-components 1 -C /usr/local/bin/ --wildcards tailscale_*/tailscaled
-rm -f tailscale_*.tgz
-
-# Fix SELinux labels
-sudo chcon -t bin_t /usr/local/bin/tailscale
-sudo chcon -t bin_t /usr/local/bin/tailscaled
-
-# Create systemd service
-sudo tee /etc/systemd/system/tailscaled.service << EOF
-[Unit]
-Description=Tailscale node agent
-Documentation=https://tailscale.com/kb/
-Wants=network-pre.target
-After=network-pre.target NetworkManager.service systemd-resolved.service
-
-[Service]
-ExecStartPre=/usr/local/bin/tailscaled --cleanup
-ExecStart=/usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port 41641
-ExecStopPost=/usr/local/bin/tailscaled --cleanup
-
-Restart=on-failure
-
-RuntimeDirectory=tailscale
-RuntimeDirectoryMode=0755
-StateDirectory=tailscale
-StateDirectoryMode=0700
-CacheDirectory=tailscale
-CacheDirectoryMode=0750
-Type=notify
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-
-# Tailscale updater
-tee ${HOME}/.local/bin/update-tailscale << 'EOF'
-#!/usr/bin/env bash
-
-TAILSCALE_LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | awk -F\" '/"name"/{print $(NF-1)}')
-TAILSCALE_INSTALLED_VERSION=$(tailscale --version | head -n 1)
-
-if [ "$TAILSCALE_LATEST_VERSION" != "$TAILSCALE_INSTALLED_VERSION" ]; then
-    sudo rm -f /usr/local/bin/{tailscale,tailscaled}
-    curl -sSL https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_LATEST_VERSION}_amd64.tgz -O
-    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /usr/local/bin/ --wildcards tailscale_*/tailscale
-    sudo tar -xf tailscale_*.tgz --strip-components 1 -C /usr/local/bin/ --wildcards tailscale_*/tailscaled
-    rm -f tailscale_*.tgz
-    sudo chcon -t bin_t /usr/local/bin/tailscale
-    sudo chcon -t bin_t /usr/local/bin/tailscaled
-fi
-EOF
-
-chmod +x ${HOME}/.local/bin/update-tailscale
-
-################################################
 ##### Unlock LUKS2 with TPM2 token
 ################################################
 
 # Install tpm2-tools
-sudo rpm-ostree install -y --apply-live tpm2-tools
+sudo rpm-ostree install -y tpm2-tools
 
 # Update crypttab
 sudo sed -ie '/^luks-/s/$/ tpm2-device=auto/' /etc/crypttab
@@ -619,5 +564,14 @@ sudo sed -ie '/^luks-/s/$/ tpm2-device=auto/' /etc/crypttab
 # Regenerate initramfs
 sudo rpm-ostree initramfs --enable --arg=--force-add --arg=tpm2-tss
 
-# Enroll TPM2 token into LUKS2
-sudo systemd-cryptenroll --tpm2-device=auto --wipe-slot=tpm2 /dev/nvme0n1p3
+################################################
+##### Gaming
+################################################
+
+# Install and configure gaming with Flatpak
+if [ ${GAMING} = "yes" ]; then
+    curl https://raw.githubusercontent.com/gjpin/fedora-silverblue/main/setup_gaming.sh -O
+    chmod +x setup_gaming.sh
+    ./setup_gaming.sh
+    rm setup_gaming.sh
+fi

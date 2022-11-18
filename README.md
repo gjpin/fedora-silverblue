@@ -1,13 +1,13 @@
-# Login to tailscale
-```bash
-sudo tailscale up --login-server https://SERVER --authkey AUTHKEY
-```
+# Installation guide
+1. Download setup script: `curl https://raw.githubusercontent.com/gjpin/fedora-silverblue/main/setup.sh -O`
+2. Make setup script executable: `chmod +x setup.sh`
+3. Run setup.sh: `./setup.sh`
+4. Reboot
+5. Enroll TPM2 token into LUKS2: `sudo systemd-cryptenroll --tpm2-device=auto --wipe-slot=tpm2 /dev/nvme0n1p3`
 
-# Flatpak - Revert to commit
+# Guides
+## Flatpak - Revert to commit
 ```bash
-# Install app
-sudo flatpak install -y flathub org.godotengine.Godot
-
 # List available commits
 flatpak remote-info --log flathub org.godotengine.Godot
 
@@ -18,36 +18,7 @@ sudo flatpak update --commit=HASH org.godotengine.Godot
 flatpak mask org.godotengine.Godot
 ```
 
-## Gaming
-```bash
-###### STEAM
-mkdir -p /mnt/data/games/steam
-sudo flatpak install -y flathub com.valvesoftware.Steam
-sudo flatpak install -y flathub com.valvesoftware.Steam.Utility.gamescope
-sudo flatpak install -y flathub com.valvesoftware.Steam.CompatibilityTool.Proton-GE
-sudo flatpak override --filesystem=/mnt/data/games/steam com.valvesoftware.Steam
-
-# Steam controllers udev rules
-sudo curl -sSL https://raw.githubusercontent.com/gjpin/fedora-silverblue/main/configs/60-steam-input.rules -o /etc/udev/rules.d/60-steam-input.rules
-
-# Reload udev rules
-sudo udevadm control --reload && sudo udevadm trigger
-
-# Enable uinput module
-sudo tee /etc/modules-load.d/uinput.conf << EOF
-uinput
-EOF
-
-###### MangoHud
-sudo flatpak install -y flathub org.freedesktop.Platform.VulkanLayer.MangoHud
-
-###### Heroic Games Launcher
-mkdir -p /mnt/data/games/heroic
-sudo flatpak install -y com.heroicgameslauncher.hgl
-sudo flatpak override --filesystem=/mnt/data/games/heroic com.heroicgameslauncher.hgl
-```
-
-## Gamescope + MangoHud + Steam
+## How to use Gamescope + MangoHud in Steam
 ```bash
 # MangoHud
 mangohud %command%
