@@ -6,7 +6,7 @@
 5. Enroll TPM2 token into LUKS2: `sudo systemd-cryptenroll --tpm2-device=auto --wipe-slot=tpm2 /dev/nvme0n1p3`
 
 # Guides
-## Flatpak - Revert to commit
+## How to revert to a previous Flatpak commit
 ```bash
 # List available commits
 flatpak remote-info --log flathub org.godotengine.Godot
@@ -33,7 +33,18 @@ gamescope -f -e -- mangohud %command%
 gamescope -h 1080 -H 1440 -U -f -e -- mangohud %command%
 ```
 
-## Disable turbo boost if on battery (laptops only)
+## How to install .deb package (eg. Aseprite)
+```bash
+mkdir -p ${HOME}/aseprite
+mv ${HOME}/Downloads/Aseprite*.deb ${HOME}/aseprite
+ar -x ${HOME}/aseprite/Aseprite*.deb --output ${HOME}/aseprite
+tar -xf ${HOME}/aseprite/data.tar.xz -C ${HOME}/aseprite
+cp -r ${HOME}/aseprite/usr/bin/aseprite ${HOME}/.local/bin/
+cp -r ${HOME}/aseprite/usr/share/* ${HOME}/.local/share/
+rm -rf ${HOME}/aseprite
+```
+
+## How to automatically disable turbo boost if on battery
 ```bash
 # References:
 # https://chrisdown.name/2017/10/29/adding-power-related-targets-to-systemd.html
@@ -105,7 +116,7 @@ sudo systemctl enable enable-turbo-boost.service
 fi
 ```
 
-## Enable amd-pstate CPU Performance Scaling Driver
+## How to enable amd-pstate CPU Performance Scaling Driver
 ```bash
 # Check if CPU is AMD and current scaling driver is not amd-pstate
 if cat /proc/cpuinfo | grep "AuthenticAMD" > /dev/null && cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver | grep -v "amd-pstate" > /dev/null; then
