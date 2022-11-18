@@ -543,6 +543,8 @@ mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 rm -f *shell-extension.zip
 
+gsettings set org.gnome.shell.extensions.dark-variant applications "['com.visualstudio.code.desktop', 'rest.insomnia.Insomnia.desktop', 'com.spotify.Client.desktop', 'md.obsidian.Obsidian.desktop', 'org.gimp.GIMP.desktop', 'org.blender.Blender.desktop', 'org.godotengine.Godot.desktop', 'com.valvesoftware.Steam.desktop', 'com.heroicgameslauncher.hgl.desktop']"
+
 # AppIndicator and KStatusNotifierItem Support
 # https://extensions.gnome.org/extension/615/appindicator-support/
 curl -sSL https://extensions.gnome.org/extension-data/appindicatorsupportrgcjonas.gmail.com.v46.shell-extension.zip -O
@@ -550,6 +552,9 @@ EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -
 mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 rm -f *shell-extension.zip
+
+# Enable extensions
+gsettings set org.gnome.shell enabled-extensions "['appindicatorsupport@rgcjonas.gmail.com', 'dark-variant@hardpixel.eu']"
 
 ################################################
 ##### Unlock LUKS2 with TPM2 token
