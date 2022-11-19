@@ -555,6 +555,19 @@ rm -f *shell-extension.zip
 gsettings set org.gnome.shell enabled-extensions "['appindicatorsupport@rgcjonas.gmail.com', 'dark-variant@hardpixel.eu']"
 
 ################################################
+##### Unlock LUKS2 with TPM2 token
+################################################
+
+# Install tpm2-tools
+sudo rpm-ostree install -y tpm2-tools
+
+# Update crypttab
+sudo sed -ie '/^luks-/s/$/ tpm2-device=auto/' /etc/crypttab
+
+# Regenerate initramfs
+sudo rpm-ostree initramfs --enable --arg=--force-add --arg=tpm2-tss
+
+################################################
 ##### Gaming
 ################################################
 

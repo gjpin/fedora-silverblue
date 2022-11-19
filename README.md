@@ -3,8 +3,9 @@
 2. Make setup script executable: `chmod +x setup.sh`
 3. Run setup.sh: `./setup.sh`
 4. Reboot
-5. Import WireGuard config to /etc/wireguard
-6. Enable WireGuard connection: `sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf`
+5. Enroll TPM2 token into LUKS2: `sudo systemd-cryptenroll --tpm2-device=auto --wipe-slot=tpm2 /dev/nvme0n1p3`
+6. Import WireGuard config to /etc/wireguard
+7. Enable WireGuard connection: `sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf`
 
 # Guides
 ## How to revert to a previous Flatpak commit
@@ -43,21 +44,6 @@ tar -xf ${HOME}/aseprite/data.tar.xz -C ${HOME}/aseprite
 cp -r ${HOME}/aseprite/usr/bin/aseprite ${HOME}/.local/bin/
 cp -r ${HOME}/aseprite/usr/share/* ${HOME}/.local/share/
 rm -rf ${HOME}/aseprite
-```
-
-## How to unlock LUKS2 with TPM2 token
-```bash
-# Install tpm2-tools
-sudo rpm-ostree install -y tpm2-tools
-
-# Update crypttab
-sudo sed -ie '/^luks-/s/$/ tpm2-device=auto/' /etc/crypttab
-
-# Regenerate initramfs
-sudo rpm-ostree initramfs --enable --arg=--force-add --arg=tpm2-tss
-
-# Enroll TPM2 token into LUKS2
-sudo systemd-cryptenroll --tpm2-device=auto --wipe-slot=tpm2 /dev/nvme0n1p3
 ```
 
 ## How to automatically disable turbo boost if on battery
