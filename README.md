@@ -6,6 +6,7 @@
 5. Enroll TPM2 token into LUKS2: `sudo systemd-cryptenroll --tpm2-device=auto --wipe-slot=tpm2 /dev/nvme0n1p3`
 6. Import WireGuard config to /etc/wireguard
 7. Enable WireGuard connection: `sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf`
+8. Set wg0's firewalld zone: `sudo firewall-cmd --permanent --zone=FedoraWorkstation --add-interface=wg0`
 
 # Guides
 ## How to revert to a previous Flatpak commit
@@ -14,9 +15,9 @@
 flatpak remote-info --log flathub org.godotengine.Godot
 
 # Downgrade to specific version
-sudo flatpak update --commit=HASH org.godotengine.Godot
+sudo flatpak update --commit=${HASH} org.godotengine.Godot
 
-# Prevent app from being updated
+# Pin version
 flatpak mask org.godotengine.Godot
 ```
 

@@ -4,6 +4,9 @@
 ##### Set variables
 ################################################
 
+read -p "Hostname: " NEW_HOSTNAME
+export NEW_HOSTNAME
+
 read -p "Gaming (yes / no): " GAMING
 export GAMING
 
@@ -11,12 +14,17 @@ export GAMING
 ##### General
 ################################################
 
+# Set hostname
+sudo hostnamectl set-hostname --pretty "${NEW_HOSTNAME}"
+sudo hostnamectl set-hostname --static "${NEW_HOSTNAME}"
+
 # Create user folders
 mkdir -p \
     ${HOME}/.bashrc.d \
     ${HOME}/.local/bin \
     ${HOME}/.local/share/themes \
     ${HOME}/.local/share/gnome-shell/extensions \
+    ${HOME}/.config/systemd/user \
     ${HOME}/src
 
 # Create WireGuard folder
@@ -43,16 +51,8 @@ update-all() {
 }
 EOF
 
-################################################
-##### Firewalld
-################################################
-
 # Set default firewall zone
 sudo firewall-cmd --set-default-zone=block
-
-################################################
-##### SELinux
-################################################
 
 # Create aliases
 tee ${HOME}/.bashrc.d/selinux << EOF
@@ -331,7 +331,7 @@ sudo flatpak install -y flathub io.github.seadve.Kooha
 
 sudo flatpak install -y flathub org.gaphor.Gaphor
 sudo flatpak install -y flathub md.obsidian.Obsidian
-sudo flatpak install -y flathub com.nextcloud.desktopclient.nextcloud
+sudo flatpak install -y flathub com.github.flxzt.rnote
 
 sudo flatpak install -y flathub org.gimp.GIMP
 sudo flatpak install -y flathub org.blender.Blender
@@ -343,7 +343,6 @@ sudo flatpak install -y flathub com.usebottles.bottles && \
 # Improve QT applications theming in GTK
 sudo flatpak install -y flathub org.kde.KStyle.Adwaita/x86_64/5.15-22.08
 sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform/x86_64/5.15-22.08
-sudo flatpak install -y flathub org.kde.PlatformTheme.QtSNI/x86_64/5.15-21.08
 sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration/x86_64/5.15-22.08
 
 ################################################
@@ -566,6 +565,44 @@ sudo sed -ie '/^luks-/s/$/ tpm2-device=auto/' /etc/crypttab
 
 # Regenerate initramfs
 sudo rpm-ostree initramfs --enable --arg=--force-add --arg=tpm2-tss
+
+################################################
+##### Syncthing
+################################################
+
+# Create syncthing directory
+mkdir -p ${HOME}/syncthing
+
+# Create systemd user unit for syncthing container
+tee ${HOME}/.config/systemd/user/syncthing.service << EOF
+[Unit]
+Description=syncthing
+After=firewalld.service
+
+[Service]
+ExecStartPre=-/usr/bin/podman kill syncthing
+ExecStartPre=-/usr/bin/podman rm syncthing
+ExecStartPre=/usr/bin/podman pull docker.io/syncthing/syncthing:latest
+ExecStart=/usr/bin/podman run -a \
+    --name=syncthing \
+    --hostname=$(hostnamectl --static) \
+    --userns keep-id \
+    -p 8384:8384/tcp \
+    -p 22000:22000/tcp \
+    -p 22000:22000/udp \
+    -p 21027:21027/udp \
+    -v ${HOME}/syncthing:/var/syncthing:Z \
+    docker.io/syncthing/syncthing:latest
+ExecStop=/usr/bin/podman stop syncthing
+ExecStopPost=/usr/bin/podman rm syncthing
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable systemd user unit
+systemctl --user enable syncthing.service
 
 ################################################
 ##### Gaming
