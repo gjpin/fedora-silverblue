@@ -23,6 +23,7 @@ mkdir -p \
     ${HOME}/.bashrc.d \
     ${HOME}/.local/bin \
     ${HOME}/.local/share/themes \
+    ${HOME}/.local/share/applications \
     ${HOME}/.local/share/gnome-shell/extensions \
     ${HOME}/.config/systemd/user \
     ${HOME}/src
@@ -103,9 +104,12 @@ toolbox run sudo dnf install -y \
 ##### Flathub
 ################################################
 
-# Add Flathub repo
+# Add Flathub repos
 sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 sudo flatpak remote-modify flathub --enable
+
+sudo flatpak remote-add --if-not-exists flathub-beta https://flathub.org/beta-repo/flathub-beta.flatpakrepo
+sudo flatpak remote-modify flathub-beta --enable
 
 ################################################
 ##### Firefox
@@ -323,22 +327,38 @@ sudo flatpak install -y flathub com.belmoussaoui.Authenticator
 sudo flatpak install -y flathub org.keepassxc.KeePassXC
 sudo flatpak install -y flathub com.github.tchx84.Flatseal
 
-sudo flatpak install -y flathub rest.insomnia.Insomnia
-
 sudo flatpak install -y flathub com.spotify.Client
 sudo flatpak install -y flathub io.github.celluloid_player.Celluloid
 sudo flatpak install -y flathub io.github.seadve.Kooha
 
 sudo flatpak install -y flathub org.gaphor.Gaphor
-sudo flatpak install -y flathub md.obsidian.Obsidian
 sudo flatpak install -y flathub com.github.flxzt.rnote
 
-sudo flatpak install -y flathub org.gimp.GIMP
-sudo flatpak install -y flathub org.blender.Blender
 sudo flatpak install -y flathub org.godotengine.Godot
 
-sudo flatpak install -y flathub com.usebottles.bottles && \
-    sudo flatpak override com.usebottles.bottles --filesystem=xdg-data/applications
+# Insomnia
+sudo flatpak install -y flathub rest.insomnia.Insomnia
+sudo flatpak override --env=GTK_THEME=adw-gtk3-dark rest.insomnia.Insomnia
+sudo flatpak override --socket=wayland rest.insomnia.Insomnia
+
+cp /var/lib/flatpak/app/rest.insomnia.Insomnia/current/active/files/share/applications/rest.insomnia.Insomnia.desktop ${HOME}/.local/share/applications
+sed -i "s|Exec=/app/bin/insomnia|Exec=flatpak run rest.insomnia.Insomnia --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform=wayland|g" ${HOME}/.local/share/applications/rest.insomnia.Insomnia.desktop
+
+# GIMP beta (has native wayland support)
+sudo flatpak install -y flathub-beta org.gimp.GIMP
+
+# Blender
+sudo flatpak install -y flathub org.blender.Blender
+sudo flatpak override --socket=wayland org.blender.Blender
+
+# Bottles
+sudo flatpak install -y flathub com.usebottles.bottles
+sudo flatpak override --filesystem=xdg-data/applications com.usebottles.bottles
+
+# Obsidian
+sudo flatpak install -y flathub md.obsidian.Obsidian
+sudo flatpak override --env=OBSIDIAN_USE_WAYLAND=1 md.obsidian.Obsidian
+sudo flatpak override --env=GTK_THEME=adw-gtk3-dark md.obsidian.Obsidian
 
 # Improve QT applications theming in GTK
 sudo flatpak install -y flathub org.kde.KStyle.Adwaita/x86_64/5.15-22.08
@@ -407,6 +427,11 @@ tee ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
     }
 }
 EOF
+
+# Run VSCode under Wayland
+sudo flatpak override --socket=wayland com.visualstudio.code
+cp /var/lib/flatpak/app/com.visualstudio.code/current/active/files/share/applications/com.visualstudio.{code,code-url-handler}.desktop ${HOME}/.local/share/applications
+sed -i "s|Exec=code|Exec=flatpak run com.visualstudio.code --enable-features=WaylandWindowDecorations --ozone-platform-hint=auto|g" ${HOME}/.local/share/applications/com.visualstudio.{code,code-url-handler}.desktop
 
 ################################################
 ##### GTK theme

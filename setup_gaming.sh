@@ -7,10 +7,6 @@
 # References:
 # https://gitlab.com/freedesktop-sdk/freedesktop-sdk/-/wikis/Mesa-git
 
-# Add Flathub beta repository
-sudo flatpak remote-add --if-not-exists flathub-beta https://flathub.org/beta-repo/flathub-beta.flatpakrepo
-sudo flatpak update -y
-
 # Install Mesa git
 sudo flatpak install -y flathub-beta org.freedesktop.Platform.GL.mesa-git//22.08
 sudo flatpak install -y flathub-beta org.freedesktop.Platform.GL32.mesa-git//22.08
