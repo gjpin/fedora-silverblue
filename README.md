@@ -27,13 +27,13 @@ flatpak mask org.godotengine.Godot
 mangohud %command%
 
 # gamescope native resolution
-gamescope -f -e -- %command%
+gamescope -f -- %command%
 
 # gamescope native resolution + MangoHud
-gamescope -f -e -- mangohud %command%
+gamescope -f -- mangohud %command%
 
 # gamescope upscale from 1080p to 1440p with FSR + mangohud
-gamescope -h 1080 -H 1440 -U -f -e -- mangohud %command%
+gamescope -h 1080 -H 1440 -U -f -- mangohud %command%
 ```
 
 ## How to install .deb package (eg. Aseprite)

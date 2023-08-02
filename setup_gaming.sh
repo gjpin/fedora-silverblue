@@ -1,24 +1,18 @@
 #!/bin/bash
 
 ################################################
-##### Mesa-git
+##### Common
 ################################################
 
 # References:
 # https://gitlab.com/freedesktop-sdk/freedesktop-sdk/-/wikis/Mesa-git
 
 # Install Mesa git
-sudo flatpak install -y flathub-beta org.freedesktop.Platform.GL.mesa-git//22.08
-sudo flatpak install -y flathub-beta org.freedesktop.Platform.GL32.mesa-git//22.08
+flatpak install -y flathub-beta org.freedesktop.Platform.GL.mesa-git//22.08
+flatpak install -y flathub-beta org.freedesktop.Platform.GL32.mesa-git//22.08
 
-# Set default Flatpak GL drivers to mesa-git
-sudo flatpak override --env=FLATPAK_GL_DRIVERS=mesa-git
-
-sudo tee -a /etc/environment << EOF
-
-# Flatpak
-FLATPAK_GL_DRIVERS=mesa-git
-EOF
+# Install ProtonUp-Qt
+flatpak install -y flathub net.davidotek.pupgui2
 
 ################################################
 ##### MangoHud
@@ -28,30 +22,40 @@ EOF
 # https://github.com/flathub/com.valvesoftware.Steam.Utility.MangoHud
 
 # Install MangoHud
-sudo flatpak install -y flathub org.freedesktop.Platform.VulkanLayer.MangoHud//22.08
+flatpak install -y flathub org.freedesktop.Platform.VulkanLayer.MangoHud//22.08
 
 # Configure MangoHud
-mkdir -p ${HOME}/.config/MangoHud
+mkdir -p ${HOME}/.var/app/com.valvesoftware.Steam/config/MangoHud/MangoHud.conf
 
-tee ${HOME}/.config/MangoHud/MangoHud.conf << EOF
+tee ${HOME}/.var/app/com.valvesoftware.Steam/config/MangoHud/MangoHud.conf << EOF
+control=mangohud
+legacy_layout=0
+horizontal
+gpu_stats
+cpu_stats
+ram
+fps
+frametime=0
+hud_no_margin
+table_columns=14
+frame_timing=1
 engine_version
 vulkan_driver
 EOF
-
-# Allow Flatpaks to access MangoHud configs
-sudo flatpak override --filesystem=xdg-config/MangoHud:ro
 
 ################################################
 ##### Steam
 ################################################
 
 # Install Steam
-sudo flatpak install -y flathub com.valvesoftware.Steam
-sudo flatpak install -y flathub com.valvesoftware.Steam.Utility.gamescope
-sudo flatpak install -y flathub com.valvesoftware.Steam.CompatibilityTool.Proton-GE
+flatpak install -y flathub com.valvesoftware.Steam
+flatpak install -y flathub org.freedesktop.Platform.VulkanLayer.gamescope
+
+# Make Steam use mesa-git
+sudo flatpak override --env=FLATPAK_GL_DRIVERS=mesa-git com.valvesoftware.Steam
 
 # Allow Steam to access external directory
-sudo flatpak override --filesystem=/mnt/data/games/steam com.valvesoftware.Steam
+sudo flatpak override --filesystem=/data/games/steam com.valvesoftware.Steam
 
 # Steam controllers udev rules
 curl -sSL https://raw.githubusercontent.com/ValveSoftware/steam-devices/master/60-steam-input.rules -O
@@ -65,7 +69,10 @@ echo 'uinput' | sudo tee /etc/modules-load.d/uinput.conf
 ################################################
 
 # Install Heroic Games Launcher
-sudo flatpak install -y flathub com.heroicgameslauncher.hgl
+flatpak install -y flathub com.heroicgameslauncher.hgl
+
+# Make Heroic use mesa-git
+sudo flatpak override --env=FLATPAK_GL_DRIVERS=mesa-git com.heroicgameslauncher.hgl
 
 # Allow Heroic to access external directory
-sudo flatpak override --filesystem=/mnt/data/games/heroic com.heroicgameslauncher.hgl
+sudo flatpak override --filesystem=/data/games/heroic com.heroicgameslauncher.hgl

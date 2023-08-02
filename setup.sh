@@ -29,11 +29,13 @@ mkdir -p \
     ${HOME}/src
 
 # Create WireGuard folder
-sudo mkdir -p /etc/wireguard/
-sudo chmod 700 /etc/wireguard/
+sudo mkdir -p /etc/wireguard
+sudo chmod 700 /etc/wireguard
 
 # Updater bash function
 tee ${HOME}/.bashrc.d/update-all << EOF
+#!/bin/bash
+
 update-all() {
   # Update system
   sudo rpm-ostree upgrade
@@ -47,7 +49,7 @@ update-all() {
   # Update GTK theme
   update-gtk-theme
 
-  # Update toolbox pckages
+  # Update toolbox packages
   toolbox run sudo dnf upgrade -y --refresh
 }
 EOF
@@ -77,9 +79,6 @@ toolbox run sudo dnf upgrade -y --refresh
 # Install bind-utils (dig, etc)
 toolbox run sudo dnf install -y bind-utils
 
-# Install wireguard-tools
-toolbox run sudo dnf install -y wireguard-tools
-
 # Install go
 toolbox run sudo dnf install -y golang
 
@@ -91,14 +90,6 @@ EOF
 
 # Install nodejs
 toolbox run sudo dnf install -y nodejs npm
-
-# Install language servers
-toolbox run sudo dnf install -y \
-  python-lsp-server \
-  typescript \
-  nodejs-bash-language-server \
-  golang-x-tools-gopls \
-  clang-tools-extra
 
 ################################################
 ##### Flathub
@@ -123,17 +114,19 @@ sudo flatpak remote-modify flathub-beta --enable
 sudo rpm-ostree override remove firefox
 
 # Install Firefox from Flathub
-sudo flatpak install -y flathub org.mozilla.firefox
-sudo flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/22.08
-sudo flatpak install -y flathub org.freedesktop.Platform.GStreamer.gstreamer-vaapi/x86_64/22.08
+flatpak install -y flathub org.mozilla.firefox
+flatpak install -y flathub org.freedesktop.Platform.ffmpeg-full/x86_64/22.08
+flatpak install -y flathub org.freedesktop.Platform.GStreamer.gstreamer-vaapi/x86_64/22.08
 
 # Install Intel VA-API drivers if applicable
 if lspci | grep VGA | grep "Intel" > /dev/null; then
-  sudo flatpak install -y flathub org.freedesktop.Platform.VAAPI.Intel/x86_64/22.08
+  flatpak install -y flathub org.freedesktop.Platform.VAAPI.Intel/x86_64/22.08
 fi
 
-# Set Firefox Flatpak as default browser
+# Set Firefox Flatpak as default browser and handler for https(s)
 xdg-settings set default-web-browser org.mozilla.firefox.desktop
+xdg-mime default org.mozilla.firefox.desktop x-scheme-handler/http
+xdg-mime default firefox.desktop x-scheme-handler/https
 
 # Temporarily open Firefox to create profiles
 timeout 5 flatpak run org.mozilla.firefox --headless
@@ -145,6 +138,7 @@ git clone https://github.com/rafaelmardojai/firefox-gnome-theme.git ${FIREFOX_PR
 echo "@import \"firefox-gnome-theme/userChrome.css\"" > ${FIREFOX_PROFILE_PATH}/chrome/userChrome.css
 echo "@import \"firefox-gnome-theme/userContent.css\"" > ${FIREFOX_PROFILE_PATH}/chrome/userContent.css
 tee -a ${FIREFOX_PROFILE_PATH}/user.js << EOF
+
 // Enable customChrome.css
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 
@@ -153,11 +147,14 @@ user_pref("browser.uidensity", 0);
 
 // Enable SVG context-propertes
 user_pref("svg.context-properties.content.enabled", true);
+
+// Add more contrast to the active tab
+user_pref("gnomeTheme.activeTabContrast", true);
 EOF
 
 # Firefox theme updater
 tee ${HOME}/.local/bin/update-firefox-theme << 'EOF'
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Update Firefox theme
 FIREFOX_PROFILE_PATH=$(realpath ${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox/*.default-release)
@@ -170,207 +167,48 @@ chmod +x ${HOME}/.local/bin/update-firefox-theme
 sudo flatpak override --socket=wayland --env=MOZ_ENABLE_WAYLAND=1 org.mozilla.firefox
 
 # Import Firefox configs
-tee -a ${FIREFOX_PROFILE_PATH}/user.js << EOF
+wget https://raw.githubusercontent.com/gjpin/arch-linux/main/extra/firefox.js -O ${FIREFOX_PROFILE_PATH}/user.js
 
-// Enable FFMPEG VA-API
-user_pref("media.ffmpeg.vaapi.enabled", true);
-
-// Disable title bar
-user_pref("browser.tabs.inTitlebar", 1);
-
-// Disable View feature
-user_pref("browser.tabs.firefox-view", false);
-
-// Disable List All Tabs button
-user_pref("browser.tabs.tabmanager.enabled", false);
-
-// Disable password manager
-user_pref("signon.rememberSignons", false);
-
-// Disable default browser check
-user_pref("browser.shell.checkDefaultBrowser", false);
-
-// Enable scrolling with middle mouse button
-user_pref("general.autoScroll", true);
-
-// Enable Firefox Tracking Protection
-user_pref("browser.contentblocking.category", "strict");
-user_pref("privacy.trackingprotection.enabled", true);
-user_pref("privacy.trackingprotection.pbmode.enabled", true);
-user_pref("privacy.trackingprotection.fingerprinting.enabled", true);
-user_pref("privacy.trackingprotection.cryptomining.enabled", true);
-user_pref("privacy.trackingprotection.socialtracking.enabled", true);
-user_pref("network.cookie.cookieBehavior", 5);
-
-// Disable Mozilla telemetry/experiments
-user_pref("toolkit.telemetry.enabled",				false);
-user_pref("toolkit.telemetry.unified",				false);
-user_pref("toolkit.telemetry.archive.enabled",			false);
-user_pref("experiments.supported",				false);
-user_pref("experiments.enabled",				false);
-user_pref("experiments.manifest.uri",				"");
-
-// Disallow Necko to do A/B testing
-user_pref("network.allow-experiments",				false);
-
-// Disable collection/sending of the health report
-user_pref("datareporting.healthreport.uploadEnabled",		false);
-user_pref("datareporting.healthreport.service.enabled",		false);
-user_pref("datareporting.policy.dataSubmissionEnabled",		false);
-user_pref("browser.discovery.enabled",				false);
-
-// Disable Pocket
-user_pref("browser.pocket.enabled",				false);
-user_pref("extensions.pocket.enabled",				false);
-user_pref("browser.newtabpage.activity-stream.feeds.section.topstories",	false);
-
-// Disable Location-Aware Browsing (geolocation)
-user_pref("geo.enabled",					false);
-
-// Disable "beacon" asynchronous HTTP transfers (used for analytics)
-user_pref("beacon.enabled",					false);
-
-// Disable speech recognition
-user_pref("media.webspeech.recognition.enable",			false);
-
-// Disable speech synthesis
-user_pref("media.webspeech.synth.enabled",			false);
-
-// Disable pinging URIs specified in HTML <a> ping= attributes
-user_pref("browser.send_pings",					false);
-
-// Don't try to guess domain names when entering an invalid domain name in URL bar
-user_pref("browser.fixup.alternate.enabled",			false);
-
-// Opt-out of add-on metadata updates
-user_pref("extensions.getAddons.cache.enabled",			false);
-
-// Opt-out of themes (Persona) updates
-user_pref("lightweightThemes.update.enabled",			false);
-
-// Disable Flash Player NPAPI plugin
-user_pref("plugin.state.flash",					0);
-
-// Disable Java NPAPI plugin
-user_pref("plugin.state.java",					0);
-
-// Disable Gnome Shell Integration NPAPI plugin
-user_pref("plugin.state.libgnome-shell-browser-plugin",		0);
-
-// Updates addons automatically
-user_pref("extensions.update.enabled",				true);
-
-// Enable add-on and certificate blocklists (OneCRL) from Mozilla
-user_pref("extensions.blocklist.enabled",			true);
-user_pref("services.blocklist.update_enabled",			true);
-
-// Disable Extension recommendations
-user_pref("browser.newtabpage.activity-stream.asrouter.userprefs.cfr",	false);
-
-// Disable sending Firefox crash reports to Mozilla servers
-user_pref("breakpad.reportURL",					"");
-
-// Disable sending reports of tab crashes to Mozilla
-user_pref("browser.tabs.crashReporting.sendReport",		false);
-user_pref("browser.crashReports.unsubmittedCheck.enabled",	false);
-
-// Enable Firefox's anti-fingerprinting mode
-user_pref("privacy.resistFingerprinting",			true);
-
-// Disable Shield/Heartbeat/Normandy
-user_pref("app.normandy.enabled", false);
-user_pref("app.normandy.api_url", "");
-user_pref("extensions.shield-recipe-client.enabled",		false);
-user_pref("app.shield.optoutstudies.enabled",			false);
-
-// Disable Firefox Hello metrics collection
-user_pref("loop.logDomains",					false);
-
-// Enable blocking reported web forgeries
-user_pref("browser.safebrowsing.phishing.enabled",		true);
-
-// Enable blocking reported attack sites
-user_pref("browser.safebrowsing.malware.enabled",		true);
-
-// Disable downloading homepage snippets/messages from Mozilla
-user_pref("browser.aboutHomeSnippets.updateUrl",		"");
-
-// Enable Content Security Policy (CSP)
-user_pref("security.csp.experimentalEnabled",			true);
-
-// Enable Subresource Integrity
-user_pref("security.sri.enable",				true);
-
-// Don't send referer headers when following links across different domains
-user_pref("network.http.referer.XOriginPolicy",		2);
-
-// Disable new tab tile ads & preload
-user_pref("browser.newtabpage.enhanced",			false);
-user_pref("browser.newtab.preload",				false);
-user_pref("browser.newtabpage.directory.ping",			"");
-user_pref("browser.newtabpage.directory.source",		"data:text/plain,{}");
-
-// Enable HTTPS-Only Mode
-user_pref("dom.security.https_only_mode",			true);
-
-// Enable HSTS preload list
-user_pref("network.stricttransportsecurity.preloadlist",	true);
-EOF
+# Install extensions
+mkdir -p ${FIREFOX_PROFILE_PATH}/extensions
+curl https://addons.mozilla.org/firefox/downloads/file/4003969/ublock_origin-latest.xpi -o ${FIREFOX_PROFILE_PATH}/extensions/uBlock0@raymondhill.net.xpi
+curl https://addons.mozilla.org/firefox/downloads/file/4018008/bitwarden_password_manager-latest.xpi -o ${FIREFOX_PROFILE_PATH}/extensions/{446900e4-71c2-419f-a6a7-df9c091e268b}.xpi
+curl https://addons.mozilla.org/firefox/downloads/file/3998783/floccus-latest.xpi -o ${FIREFOX_PROFILE_PATH}/extensions/floccus@handmadeideas.org.xpi
+curl https://addons.mozilla.org/firefox/downloads/file/3932862/multi_account_containers-latest.xpi -o ${FIREFOX_PROFILE_PATH}/extensions/@testpilot-containers.xpi
 
 ################################################
 ##### Applications
 ################################################
 
 # Install common applications
-sudo flatpak install -y flathub com.bitwarden.desktop
-sudo flatpak install -y flathub com.belmoussaoui.Authenticator
-sudo flatpak install -y flathub org.keepassxc.KeePassXC
-sudo flatpak install -y flathub com.github.tchx84.Flatseal
+flatpak install -y flathub com.bitwarden.desktop
+flatpak install -y flathub com.belmoussaoui.Authenticator
+flatpak install -y flathub org.keepassxc.KeePassXC
+flatpak install -y flathub com.github.tchx84.Flatseal
+flatpak install -y flathub com.spotify.Client
+flatpak install -y flathub io.github.celluloid_player.Celluloid
+flatpak install -y flathub io.github.seadve.Kooha
+flatpak install -y flathub org.gaphor.Gaphor
+flatpak install -y flathub com.github.flxzt.rnote
+flatpak install -y flathub org.godotengine.Godot
+flatpak install -y flathub org.libreoffice.LibreOffice
+flatpak install -y flathub rest.insomnia.Insomnia
+flatpak install flathub org.gimp.GIMP
+flatpak install -y flathub org.blender.Blender
+flatpak install -y flathub md.obsidian.Obsidian
 
-sudo flatpak install -y flathub com.spotify.Client
-sudo flatpak install -y flathub io.github.celluloid_player.Celluloid
-sudo flatpak install -y flathub io.github.seadve.Kooha
-
-sudo flatpak install -y flathub org.gaphor.Gaphor
-sudo flatpak install -y flathub com.github.flxzt.rnote
-
-sudo flatpak install -y flathub org.godotengine.Godot
-
-# Insomnia
-sudo flatpak install -y flathub rest.insomnia.Insomnia
-sudo flatpak override --env=GTK_THEME=adw-gtk3-dark rest.insomnia.Insomnia
-sudo flatpak override --socket=wayland rest.insomnia.Insomnia
-
-cp /var/lib/flatpak/app/rest.insomnia.Insomnia/current/active/files/share/applications/rest.insomnia.Insomnia.desktop ${HOME}/.local/share/applications
-sed -i "s|Exec=/app/bin/insomnia|Exec=flatpak run rest.insomnia.Insomnia --enable-features=UseOzonePlatform,WaylandWindowDecorations --ozone-platform=wayland|g" ${HOME}/.local/share/applications/rest.insomnia.Insomnia.desktop
-
-# GIMP beta (has native wayland support)
-sudo flatpak install -y flathub-beta org.gimp.GIMP
-
-# Blender
-sudo flatpak install -y flathub org.blender.Blender
-sudo flatpak override --socket=wayland org.blender.Blender
-
-# Bottles
-sudo flatpak install -y flathub com.usebottles.bottles
+flatpak install -y flathub com.usebottles.bottles
 sudo flatpak override --filesystem=xdg-data/applications com.usebottles.bottles
-
-# Obsidian
-sudo flatpak install -y flathub md.obsidian.Obsidian
-sudo flatpak override --env=OBSIDIAN_USE_WAYLAND=1 md.obsidian.Obsidian
-sudo flatpak override --env=GTK_THEME=adw-gtk3-dark md.obsidian.Obsidian
-
-# Improve QT applications theming in GTK
-sudo flatpak install -y flathub org.kde.KStyle.Adwaita/x86_64/5.15-22.08
-sudo flatpak install -y flathub org.kde.PlatformTheme.QGnomePlatform/x86_64/5.15-22.08
-sudo flatpak install -y flathub org.kde.WaylandDecoration.QGnomePlatform-decoration/x86_64/5.15-22.08
 
 ################################################
 ##### Visual Studio Code
 ################################################
 
+# References:
+# https://github.com/flathub/com.visualstudio.code
+
 # Install VSCode
-sudo flatpak install -y flathub com.visualstudio.code
+flatpak install -y flathub com.visualstudio.code
 
 # Add bash alias
 tee ${HOME}/.bashrc.d/vscode << EOF
@@ -380,16 +218,20 @@ EOF
 # Install extensions
 flatpak run com.visualstudio.code --install-extension piousdeer.adwaita-theme
 flatpak run com.visualstudio.code --install-extension golang.Go
+flatpak run com.visualstudio.code --install-extension HashiCorp.terraform
+flatpak run com.visualstudio.code --install-extension HashiCorp.HCL
+flatpak run com.visualstudio.code --install-extension redhat.vscode-yaml
+flatpak run com.visualstudio.code --install-extension ms-kubernetes-tools.vscode-kubernetes-tools
+flatpak run com.visualstudio.code --install-extension esbenp.prettier-vscode
 flatpak run com.visualstudio.code --install-extension dbaeumer.vscode-eslint
-flatpak run com.visualstudio.code --install-extension vue.volar
-flatpak run com.visualstudio.code --install-extension llvm-vs-code-extensions.vscode-clangd
-flatpak run com.visualstudio.code --install-extension geequlim.godot-tools
 
 # Configure VSCode
 mkdir -p ${HOME}/.var/app/com.visualstudio.code/config/Code/User
 tee ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
 {
     "telemetry.telemetryLevel": "off",
+    "redhat.telemetry.enabled": false,
+    "terraform.telemetry.enabled": false,
     "window.menuBarVisibility": "toggle",
     "workbench.startupEditor": "none",
     "editor.fontFamily": "'Noto Sans Mono', 'Droid Sans Mono', 'monospace', 'Droid Sans Fallback'",
@@ -428,18 +270,14 @@ tee ${HOME}/.var/app/com.visualstudio.code/config/Code/User/settings.json << EOF
 }
 EOF
 
-# Run VSCode under Wayland
-sudo flatpak override --socket=wayland com.visualstudio.code
-cp /var/lib/flatpak/app/com.visualstudio.code/current/active/files/share/applications/com.visualstudio.{code,code-url-handler}.desktop ${HOME}/.local/share/applications
-sed -i "s|Exec=code|Exec=flatpak run com.visualstudio.code --enable-features=WaylandWindowDecorations --ozone-platform-hint=auto|g" ${HOME}/.local/share/applications/com.visualstudio.{code,code-url-handler}.desktop
-
 ################################################
 ##### GTK theme
 ################################################
 
 # Install adw-gtk3 flatpak
-sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3
-sudo flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3-dark
+flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3
+flatpak install -y flathub org.gtk.Gtk3theme.adw-gtk3-dark
+sudo flatpak override --filesystem=${HOME}/.local/share/themes
 
 # Download and install latest adw-gtk3 release
 URL=$(curl -s https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | awk -F\" '/browser_download_url.*.tar.xz/{print $(NF-1)}')
@@ -569,7 +407,15 @@ gsettings set org.gnome.shell.extensions.dark-variant applications "['com.visual
 
 # AppIndicator and KStatusNotifierItem Support
 # https://extensions.gnome.org/extension/615/appindicator-support/
-curl -sSL https://extensions.gnome.org/extension-data/appindicatorsupportrgcjonas.gmail.com.v46.shell-extension.zip -O
+curl -sSL https://extensions.gnome.org/extension-data/appindicatorsupportrgcjonas.gmail.com.v53.shell-extension.zip -O
+EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -d \" -f4)
+mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
+unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
+rm -f *shell-extension.zip
+
+# Grand Theft Focus
+# # https://extensions.gnome.org/extension/5410/grand-theft-focus
+curl -sSL https://extensions.gnome.org/extension-data/grand-theft-focuszalckos.github.com.v3.shell-extension.zip -O
 EXTENSION_UUID=$(unzip -c *shell-extension.zip metadata.json | grep uuid | cut -d \" -f4)
 mkdir -p ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
 unzip -q *shell-extension.zip -d ${HOME}/.local/share/gnome-shell/extensions/${EXTENSION_UUID}
