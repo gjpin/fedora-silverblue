@@ -206,14 +206,14 @@ flatpak install -y flathub io.github.celluloid_player.Celluloid
 flatpak install -y flathub io.github.seadve.Kooha
 flatpak install -y flathub org.gaphor.Gaphor
 flatpak install -y flathub com.github.flxzt.rnote
-flatpak install -y flathub org.godotengine.Godot
 flatpak install -y flathub org.libreoffice.LibreOffice
 flatpak install -y flathub rest.insomnia.Insomnia
-flatpak install flathub org.gimp.GIMP
+flatpak install -y flathub org.gimp.GIMP
 flatpak install -y flathub org.blender.Blender
 flatpak install -y flathub md.obsidian.Obsidian
-
 flatpak install -y flathub com.usebottles.bottles
+
+# Flatpak overrides
 sudo flatpak override --filesystem=xdg-data/applications com.usebottles.bottles
 
 ################################################
