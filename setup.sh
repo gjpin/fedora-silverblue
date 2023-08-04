@@ -79,6 +79,9 @@ toolbox run sudo dnf upgrade -y --refresh
 # Install bind-utils (dig, etc)
 toolbox run sudo dnf install -y bind-utils
 
+# Install DNF plugins
+toolbox run sudo dnf install -y dnf-plugins-core
+
 # Install go
 toolbox run sudo dnf install -y golang
 
@@ -90,6 +93,19 @@ EOF
 
 # Install nodejs
 toolbox run sudo dnf install -y nodejs npm
+
+# Install cfssl
+toolbox run sudo dnf install -y golang-github-cloudflare-cfssl
+
+# Install make
+toolbox run sudo dnf install -y make
+
+# Install butane
+toolbox run sudo dnf install -y butane
+
+# Hashicorp tools
+toolbox run sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+toolbox run sudo dnf -y install terraform nomad consul vault
 
 ################################################
 ##### Flathub
@@ -352,22 +368,6 @@ EOF
 
 # Enable systemd user unit
 systemctl --user enable syncthing.service
-
-################################################
-##### Butane
-################################################
-
-tee ${HOME}/.local/bin/butane << 'EOF'
-#!/bin/bash
-
-exec podman run --rm --interactive         \
-     --security-opt label=disable          \
-     --volume "${PWD}":/pwd --workdir /pwd \
-     quay.io/coreos/butane:release         \
-     "${@}"
-EOF
-
-chmod +x ${HOME}/.local/bin/butane
 
 ################################################
 ##### Gnome
