@@ -211,6 +211,7 @@ flatpak install -y flathub rest.insomnia.Insomnia
 flatpak install -y flathub org.gimp.GIMP
 flatpak install -y flathub org.blender.Blender
 flatpak install -y flathub md.obsidian.Obsidian
+flatpak install -y flathub org.chromium.Chromium
 flatpak install -y flathub com.usebottles.bottles
 
 # Flatpak overrides
@@ -368,6 +369,26 @@ EOF
 
 # Enable systemd user unit
 systemctl --user enable syncthing.service
+
+################################################
+##### Applications
+################################################
+
+# References:
+# https://flathub.org/apps/dev.lizardbyte.app.Sunshine
+
+# Install Sunshine
+flatpak install -y flathub dev.lizardbyte.app.Sunshine
+
+# Allow Sunshine Virtual Input
+sudo chown $USER /dev/uinput
+echo 'KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/85-sunshine-input.rules
+
+# Allow Sunshine to start apps and games
+sudo flatpak override --talk-name=org.freedesktop.Flatpak dev.lizardbyte.app.Sunshine
+
+# KMS Grab
+sudo flatpak override --socket=wayland --env=PULSE_SERVER=unix:$(pactl info | awk '/Server String/{print$3}') dev.lizardbyte.app.Sunshine
 
 ################################################
 ##### Gnome
