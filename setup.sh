@@ -214,9 +214,6 @@ flatpak install -y flathub md.obsidian.Obsidian
 flatpak install -y flathub org.chromium.Chromium
 flatpak install -y flathub com.usebottles.bottles
 
-# Flatpak overrides
-sudo flatpak override --filesystem=xdg-data/applications com.usebottles.bottles
-
 ################################################
 ##### Visual Studio Code
 ################################################
